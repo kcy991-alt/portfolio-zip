@@ -44,11 +44,6 @@ export function AuthCard() {
       <h1 className="text-balance break-keep text-[24px] font-bold leading-[34px] sm:text-[28px] sm:leading-[38px]">portfolio_zip에 오신 것을 환영해요</h1>
       <p className="mt-2 text-balance break-keep text-muted">흩어진 경험을 기록하고, 나만의 포트폴리오로 완성해 보세요.</p>
 
-      <div role="note" className="mt-5 rounded-control bg-accent-soft p-4">
-        <p className="font-bold text-accent">현재 테스트 운영 중이에요</p>
-        <p className="mt-1 break-keep text-sm leading-6 text-ink/80">일부 계정에서만 로그인할 수 있어요. 로그인하면 작성한 내용이 저장돼요.</p>
-      </div>
-
       {message && (
         <p role="alert" className="mt-4 rounded-control border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
           {message}
