@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LandingVisual } from "@/components/landing-visual";
+import { HomePageViewed } from "@/components/amplitude";
 import { Logo } from "@/components/logo";
 import { CountUp, GlassHeader, MotionRoot, Reveal } from "@/components/motion-kit";
 import { STEPS } from "@/templates/pm-v1";
@@ -78,6 +79,7 @@ const HOW = [
 export default function Home() {
   return (
     <MotionRoot>
+    <HomePageViewed />
     <div className="flex flex-1 flex-col">
       {/* 자바스크립트가 꺼진 환경에서는 나타나는 효과 없이 바로 보이게 한다 */}
       <noscript>

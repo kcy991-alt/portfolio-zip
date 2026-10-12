@@ -631,3 +631,11 @@
 - **수정(같은 날, 3차)**: 커버 이미지에 칩들을 잇는 얇은 곡선(궤도선, 옅은 파랑)을 다시 넣었다.
 - **수정(같은 날, 4차)**: 두 안(알약 있음/없음)을 비교해 알약이 없는 쪽으로 정했다. "기획·PM 지원자를 위한 Career Archive" 알약을 빼고(9px라 작은 크기에서 읽히지 않고 제목과 겹쳐 복잡해 보임), 제목을 23→26px로 키웠다. 부제와 폴더가 겹치지 않게 폴더·칩 위치를 조금 옮겼다.
 - **다른 선택지**: 알약을 남기는 안(이 이미지만 보고 기획·PM용임을 알릴 수 있으나 브로셔 본문에 이미 있는 내용).
+
+## 2026-10-12 — Amplitude 이용 통계 연결(화면 녹화 제외)
+- **정한 것**: Amplitude(`@amplitude/unified`)를 연결했다. 화면 녹화(Session Replay)는 사용자가 원하지 않아 녹화 비율 0으로 고정했다. 첫 이벤트는 사용자가 고른 `Viewed Home Page`(시작 화면이 열릴 때) 1개만 보낸다(`prompt_version` 속성이 함께 간다. 설치 안내가 요구한 값으로, 확인 후 지워도 된다). 키는 `NEXT_PUBLIC_AMPLITUDE_API_KEY`로 `.env.local`에 두고 `.env.example`에는 이름만 추가했다(코드에 키를 직접 쓰지 않는 규칙). 코드는 `src/components/amplitude.tsx`, 시작은 `src/app/layout.tsx`, 이벤트는 `src/app/page.tsx`. `/privacy`에 이용 통계 사용을 알리는 문구를 넣었다.
+- **자동 수집 설정**: 설치 안내는 `autocapture: true`였으나, 클릭한 버튼·링크의 글자(프로젝트 이름 등 사용자 입력이 섞임)와 폼 정보가 외부로 나갈 수 있어 `elementInteractions`·`formInteractions`·`frustrationInteractions`·`networkTracking`·`webVitals`·`performanceTracking`을 껐다. 방문(Page Viewed)·세션 등은 켜 둔다.
+- **spec과의 충돌**: spec 12.1은 "외부 분석 SaaS는 P0에서 사용하지 않음", 10.4는 이벤트를 자체 DB에 기록하는 방식이다. 사용자가 알고도 설치를 정했고 spec.md는 허락 없이 고치지 않으므로 그대로 두었다. spec을 고칠지는 사용자가 정한다.
+- **확인한 것**: 로컬 개발 서버에서 `Viewed Home Page`와 `[Amplitude] Page Viewed`가 api2.amplitude.com으로 전송됨, 화면 녹화 업로드 요청은 없음, 빌드·린트·테스트 통과.
+- **남은 것(사용자)**: ① Vercel 환경변수에 `NEXT_PUBLIC_AMPLITUDE_API_KEY` 추가 후 재배포 ② Amplitude 프로젝트 설정에서 Session Replay를 켜지 않기(원격 설정이 코드 설정보다 우선) ③ Setup 화면에서 이벤트 이름 확인.
+- **다른 선택지**: 분석만 켜는 `amplitude.init`(화면 녹화·Guides 코드를 아예 불러오지 않아 더 안전하나 설치 안내와 달라 채택하지 않음), 설치하지 않기.
