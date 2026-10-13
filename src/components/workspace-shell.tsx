@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { useWorkspace } from "@/components/workspace-data";
 
@@ -118,7 +118,7 @@ function Sidebar({ onNavigate, account, onClose }: { onNavigate?: () => void; ac
         <li className="flex gap-1.5">
           <span aria-hidden>②</span>
           <span>
-            <strong className="font-semibold text-ink">포트폴리오 만들기</strong>에서 정리한 프로젝트로 포트폴리오를 만들어요.
+            <strong className="font-semibold text-ink">포트폴리오 만들기</strong>에서 정리한 프로젝트를 모아 포트폴리오를 완성해요.
           </span>
         </li>
       </ol>
@@ -237,10 +237,30 @@ function Sidebar({ onNavigate, account, onClose }: { onNavigate?: () => void; ac
   );
 }
 
+/** 지금 주소를 알려 준다. usePathname은 Suspense 안에서만 쓸 수 있어서(Cache Components) 따로 둔다. */
+function PathWatcher({ onPath }: { onPath: (path: string) => void }) {
+  const pathname = usePathname();
+  // 화면이 그려지기 전에 알려서, 사이드바가 열렸다 닫히는 깜빡임을 줄인다
+  useLayoutEffect(() => onPath(pathname), [pathname, onPath]);
+  return null;
+}
+
+const EDITOR_PATH = /^\/portfolios\/[^/]+\/edit(\/|$)/;
+
 export function WorkspaceShell({ children, account }: { children: React.ReactNode; account?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   // 1,280px 이상에서 사이드바를 접어 작성 공간을 넓힌다. 선택은 이 브라우저에 기억한다(없어도 동작).
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // 포트폴리오 편집 화면은 페이지 미리보기를 크게 보려고, 들어갈 때마다 사이드바를 닫은 채로 시작한다. 거기서 펼쳐도 기억하지 않는다.
+  const [onEditor, setOnEditor] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const shown = onEditor ? editorOpen : sidebarOpen;
+
+  const onPath = useCallback((path: string) => {
+    const editor = EDITOR_PATH.test(path);
+    setOnEditor(editor);
+    if (editor) setEditorOpen(false);
+  }, []);
 
   useEffect(() => {
     try {
@@ -252,6 +272,10 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
   }, []);
 
   const changeSidebar = (value: boolean) => {
+    if (onEditor) {
+      setEditorOpen(value);
+      return;
+    }
     setSidebarOpen(value);
     try {
       localStorage.setItem("sidebar-open", value ? "1" : "0");
@@ -265,8 +289,11 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
       <a href="#content" className="skip-link print:hidden">
         본문으로 건너뛰기
       </a>
+      <Suspense fallback={null}>
+        <PathWatcher onPath={onPath} />
+      </Suspense>
       {/* 1,280px 이상: 고정 사이드바 240px. 접으면 왼쪽 위에 펼치기 버튼만 남는다 */}
-      {sidebarOpen ? (
+      {shown ? (
         <aside id="app-sidebar" className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-line bg-panel xl:block print:!hidden">
           <Suspense fallback={null}>
             <Sidebar account={account} onClose={() => changeSidebar(false)} />
@@ -303,7 +330,7 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
         </div>
       )}
 
-      <div className={`flex min-w-0 flex-1 flex-col ${sidebarOpen ? "" : "xl:pl-16"}`}>
+      <div className={`flex min-w-0 flex-1 flex-col ${shown ? "" : "xl:pl-16"}`}>
         <header className="flex h-14 items-center gap-3 border-b border-line bg-panel px-4 xl:hidden print:hidden">
           <button
             type="button"

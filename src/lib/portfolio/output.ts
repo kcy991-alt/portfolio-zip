@@ -10,7 +10,7 @@ import { orderedPages, PAGE_TYPE_LABEL, type PortfolioDoc, type PortfolioPageDoc
 // 1. 조각(atom): 페이지에 놓이는 가장 작은 단위. 문단·목록 항목·이미지 하나가 한 조각이다 (spec 9.2: 문단·항목 경계로만 나눈다)
 // ---------------------------------------------------------------------------
 
-export type Atom =
+export type Atom = (
   | { id: string; kind: "title"; text: string } // 프로젝트 이름 같은 큰 제목. 다음 조각과 붙어 다닌다.
   | { id: string; kind: "zoneTitle"; text: string } // 구역 제목. 다음 조각과 붙어 다닌다.
   | { id: string; kind: "subtitle"; text: string } // Summary 항목 제목. 다음 조각과 붙어 다닌다.
@@ -18,7 +18,11 @@ export type Atom =
   | { id: string; kind: "bullet"; text: string; label?: string }
   | { id: string; kind: "badge"; text: string }
   | { id: string; kind: "tags"; items: string[] }
-  | { id: string; kind: "image"; imageId: string; url: string | null; alt: string; decorative: boolean; caption: string; width: number; height: number };
+  | { id: string; kind: "image"; imageId: string; url: string | null; alt: string; decorative: boolean; caption: string; width: number; height: number }
+) & {
+  /** 이 조각이 속한 입력 구역. 편집 화면의 "작성 위치" 강조에 쓴다(예: "Problem", "summary:0", "profile:education"). 출력에는 나타나지 않는다. */
+  zone?: string;
+};
 
 /** id를 뺀 조각. 유니언의 각 모양에서 따로 id를 뺀다(Omit을 바로 쓰면 모양이 뭉개진다). */
 export type NewAtom = Atom extends infer A ? (A extends { id: string } ? Omit<A, "id"> : never) : never;
@@ -81,7 +85,7 @@ export function paragraphs(text: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
-const ZONE_TITLE: Record<string, string> = {
+export const ZONE_TITLE: Record<string, string> = {
   "개요·선정 이유": "개요",
   역할: "역할",
   Problem: "문제 정의",
@@ -96,6 +100,27 @@ const ZONE_TITLE: Record<string, string> = {
   Result: "결과",
   Reflection: "회고",
 };
+
+const FIXED_ZONE_LABEL: Record<string, string> = {
+  "프로젝트 정보": "프로젝트 정보",
+  "대표 이미지": "대표 이미지",
+  "cover:targetRole": "지원 직무",
+  "cover:name": "이름",
+  "cover:tagline": "한 줄 소개",
+  "cover:contact": "연락처",
+  "profile:intro": "소개",
+  "profile:education": "교육",
+  "profile:careers": "경력",
+  "profile:certificates": "자격증",
+  "profile:tools": "도구",
+};
+
+/** 편집 화면에서 "작성 위치 · ○○"로 보여 줄 이름 */
+export function zoneLabel(zone: string | null | undefined): string {
+  if (!zone) return "";
+  if (zone.startsWith("summary:")) return `Summary 항목 ${Number(zone.slice(8)) + 1}`;
+  return FIXED_ZONE_LABEL[zone] ?? ZONE_TITLE[zone] ?? zone;
+}
 
 function period(a: ProjectAnswers): string {
   const { startMonth, endMonth, ongoing } = a.overview;
@@ -252,6 +277,8 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
     if (page.hidden) continue;
     let n = 0;
     const mk = (a: NewAtom) => ({ ...a, id: `${page.id}:${n++}` }) as Atom;
+    /** 이 구역의 조각으로 표시한다 */
+    const zoned = (zone: string, list: Atom[]) => list.map((a) => ({ ...a, zone }) as Atom);
 
     if (page.type === "cover") {
       const c = doc.cover;
@@ -270,38 +297,57 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
     const atoms: Atom[] = [];
 
     if (page.type === "summary") {
-      for (const item of doc.summary.items.filter((i) => i.title.trim() || i.description.trim())) {
-        if (item.title.trim()) atoms.push(mk({ kind: "subtitle", text: item.title.trim() }));
-        for (const p of paragraphs(item.description)) atoms.push(mk({ kind: "text", text: p }));
+      doc.summary.items.forEach((item, index) => {
+        if (!item.title.trim() && !item.description.trim()) return;
+        const part: Atom[] = [];
+        if (item.title.trim()) part.push(mk({ kind: "subtitle", text: item.title.trim() }));
+        for (const p of paragraphs(item.description)) part.push(mk({ kind: "text", text: p }));
         const names = item.projectIds.map((id) => doc.projects.find((p) => p.id === id)?.title).filter((t): t is string => Boolean(t));
-        if (names.length) atoms.push(mk({ kind: "tags", items: names }));
-      }
+        if (names.length) part.push(mk({ kind: "tags", items: names }));
+        atoms.push(...zoned(`summary:${index}`, part));
+      });
       if (atoms.length) result.push({ id: page.id, type: "summary", headerTitle: "Summary", headerSub: "", atoms });
       continue;
     }
 
     if (page.type === "profile") {
       const p = doc.profile;
-      for (const para of paragraphs(p.intro)) atoms.push(mk({ kind: "text", text: para }));
+      atoms.push(...zoned("profile:intro", paragraphs(p.intro).map((para) => mk({ kind: "text", text: para }))));
       const edu = p.education.filter((e) => e.org.trim() || e.course.trim());
       if (edu.length) {
-        atoms.push(mk({ kind: "zoneTitle", text: "교육" }));
-        for (const e of edu) atoms.push(mk({ kind: "bullet", label: e.period.trim() || undefined, text: [[e.course.trim(), e.org.trim()].filter(Boolean).join(" · "), e.description.trim()].filter(Boolean).join("\n") }));
+        atoms.push(
+          ...zoned("profile:education", [
+            mk({ kind: "zoneTitle", text: "교육" }),
+            ...edu.map((e) => mk({ kind: "bullet", label: e.period.trim() || undefined, text: [[e.course.trim(), e.org.trim()].filter(Boolean).join(" · "), e.description.trim()].filter(Boolean).join("\n") })),
+          ]),
+        );
       }
       const careers = p.careers.filter((c) => c.org.trim() || c.role.trim());
       if (careers.length) {
-        atoms.push(mk({ kind: "zoneTitle", text: "경력" }));
-        for (const c of careers) atoms.push(mk({ kind: "bullet", label: c.period.trim() || undefined, text: [[c.org.trim(), c.role.trim()].filter(Boolean).join(" · "), c.description.trim()].filter(Boolean).join("\n") }));
+        atoms.push(
+          ...zoned("profile:careers", [
+            mk({ kind: "zoneTitle", text: "경력" }),
+            ...careers.map((c) => mk({ kind: "bullet", label: c.period.trim() || undefined, text: [[c.org.trim(), c.role.trim()].filter(Boolean).join(" · "), c.description.trim()].filter(Boolean).join("\n") })),
+          ]),
+        );
       }
       const certs = p.certificates.filter((c) => c.name.trim());
       if (certs.length) {
-        atoms.push(mk({ kind: "zoneTitle", text: "자격증" }));
-        for (const c of certs) atoms.push(mk({ kind: "bullet", label: c.date.trim() || undefined, text: [c.name.trim(), c.issuer.trim()].filter(Boolean).join(" · ") }));
+        atoms.push(
+          ...zoned("profile:certificates", [
+            mk({ kind: "zoneTitle", text: "자격증" }),
+            ...certs.map((c) => mk({ kind: "bullet", label: c.date.trim() || undefined, text: [c.name.trim(), c.issuer.trim()].filter(Boolean).join(" · ") })),
+          ]),
+        );
       }
       const tools = p.tools.filter((t) => t.name.trim());
       if (tools.length) {
-        atoms.push(mk({ kind: "zoneTitle", text: "도구" }));
-        atoms.push(mk({ kind: "tags", items: tools.map((t) => (t.description.trim() ? `${t.name.trim()} · ${t.description.trim()}` : t.name.trim())) }));
+        atoms.push(
+          ...zoned("profile:tools", [
+            mk({ kind: "zoneTitle", text: "도구" }),
+            mk({ kind: "tags", items: tools.map((t) => (t.description.trim() ? `${t.name.trim()} · ${t.description.trim()}` : t.name.trim())) }),
+          ]),
+        );
       }
       if (atoms.length) result.push({ id: page.id, type: "profile", headerTitle: "프로필", headerSub: "", atoms });
       continue;
@@ -317,8 +363,8 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
       const items = zoneAtoms(zone, copy, mk, hero);
       if (items.length === 0) continue;
       // 프로젝트 정보는 자체 제목(프로젝트 이름)이 있어서 구역 제목을 붙이지 않는다
-      if (zone !== "프로젝트 정보") atoms.push(mk({ kind: "zoneTitle", text: ZONE_TITLE[zone] ?? zone }));
-      atoms.push(...items);
+      const head: Atom[] = zone !== "프로젝트 정보" ? [mk({ kind: "zoneTitle", text: ZONE_TITLE[zone] ?? zone })] : [];
+      atoms.push(...zoned(zone, [...head, ...items]));
     }
     if (atoms.length || hero) result.push({ id: page.id, type: page.type, headerTitle: copy.title, headerSub: PAGE_TYPE_LABEL[page.type], atoms, ...(hero ? { hero } : {}) });
   }

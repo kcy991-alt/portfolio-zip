@@ -118,6 +118,24 @@ export function createLocalPortfolio(title: string): PortfolioDoc {
   };
 }
 
+/**
+ * 프로젝트 아카이브 편집 화면의 미리보기용 임시 제작본. 프로젝트 하나를 소개·분석·실행·결과 4개 페이지로 담은 것처럼 만들어서
+ * 포트폴리오 PDF와 같은 출력 렌더러로 그린다. 어디에도 저장하지 않는다.
+ */
+export function projectPreviewDoc(title: string, answers: ProjectAnswers, images: PortfolioImage[] = []): PortfolioDoc {
+  const copyId = "preview-copy";
+  return {
+    id: "preview",
+    title,
+    revision: 1,
+    cover: emptyCover(),
+    summary: emptySummary(),
+    profile: emptyProfile(),
+    projects: [{ id: copyId, source_project_id: null, source_available: false, source_changed: false, revision: 1, sort_order: 0, title, answers, images }],
+    pages: PROJECT_PAGE_TYPES.map((type) => ({ id: `preview-page-${type}`, type, portfolio_project_id: copyId, section_keys: [...DEFAULT_PAGE_SECTIONS[type]], hidden: false })),
+  };
+}
+
 export type CopySource = { id: string; title: string; answers: ProjectAnswers };
 
 /** 프로젝트 원본을 제작본에 복사한다. 원본과 사본은 독립이라 깊은 복사를 한다 (spec 5.3). */

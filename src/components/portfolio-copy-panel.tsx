@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { DEFAULT_PAGE_SECTIONS, PAGE_TYPE_LABEL, type PortfolioDoc, type PortfolioImage, type PortfolioPageDoc } from "@/lib/portfolio/model";
 import type { PortfolioEditorApi } from "@/lib/portfolio/use-portfolio-editor";
 import type { SectionKey } from "@/lib/validation/project-answers";
-import { STEPS } from "@/templates/pm-v1";
+import { STEPS, zoneOfField } from "@/templates/pm-v1";
 import { SECTION_FORMS } from "@/templates/pm-v1/fields";
 import { inputClass, Modal } from "./modal";
 import { SectionForm } from "./section-form";
@@ -51,12 +51,13 @@ export function ProjectCopyPanel({
   api,
   copy,
   page,
-  onSelectSection,
+  onSelectZone,
 }: {
   api: PortfolioEditorApi;
   copy: Copy;
   page: PortfolioPageDoc;
-  onSelectSection: (copyId: string, section: SectionKey) => void;
+  /** 입력 칸에 포커스가 가면, 그 칸이 들어가는 미리보기 구역을 알린다 */
+  onSelectZone: (copyId: string, zone: string) => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [confirm, setConfirm] = useState<"refresh" | "remove" | null>(null);
@@ -149,7 +150,8 @@ export function ProjectCopyPanel({
             section={s}
             answers={copy.answers}
             onChange={(answers) => api.updateCopy(copy.id, { answers })}
-            onFocusSection={(section) => onSelectSection(copy.id, section)}
+            onFocusSection={(section) => onSelectZone(copy.id, zoneOfField(section, ""))}
+            onFocusField={(section, field) => onSelectZone(copy.id, zoneOfField(section, field))}
           />
         ))}
       </div>

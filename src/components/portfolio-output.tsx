@@ -19,28 +19,39 @@ const IMAGE_MAX_H = 240;
 
 const ACCENT = "#315be8";
 
-function AtomView({ atom }: { atom: Atom }) {
+/** 편집 화면에서 지금 작성 중인 구역을 알리는 표시. 출력(미리보기·PDF)에서는 activeZone을 넘기지 않으므로 나타나지 않는다. */
+const zoneProps = (zone: string | undefined, activeZone: string | null | undefined) => {
+  const on = Boolean(zone && activeZone && zone === activeZone);
+  return { "data-zone": zone, "data-zone-active": on ? "true" : undefined, className: on ? " zone-active" : "" };
+};
+
+function AtomView({ atom, activeZone }: { atom: Atom; activeZone?: string | null }) {
+  const zp = zoneProps(atom.zone, activeZone);
   switch (atom.kind) {
     case "title":
-      return <h2 className="break-after-avoid text-[34px] font-bold leading-tight">{atom.text}</h2>;
+      return (
+        <h2 data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-after-avoid text-[34px] font-bold leading-tight${zp.className}`}>
+          {atom.text}
+        </h2>
+      );
     case "zoneTitle":
       // 구역 제목: 파란 막대 + 굵은 글씨
       return (
-        <h3 className="mt-3 flex break-after-avoid items-center gap-2.5 text-[21px] font-bold text-[#20242d]">
+        <h3 data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`mt-3 flex break-after-avoid items-center gap-2.5 text-[21px] font-bold text-[#20242d]${zp.className}`}>
           <span aria-hidden className="h-[22px] w-[6px] shrink-0 rounded-full" style={{ background: ACCENT }} />
           {atom.text}
         </h3>
       );
     case "subtitle":
       return (
-        <h3 className="mt-3 flex break-after-avoid items-center gap-2.5 text-[22px] font-bold">
+        <h3 data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`mt-3 flex break-after-avoid items-center gap-2.5 text-[22px] font-bold${zp.className}`}>
           <span aria-hidden className="h-[22px] w-[6px] shrink-0 rounded-full" style={{ background: ACCENT }} />
           {atom.text}
         </h3>
       );
     case "badge":
       return (
-        <p className="break-inside-avoid">
+        <p data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-inside-avoid${zp.className}`}>
           <span className="inline-flex items-center gap-2 rounded-full border border-[#315be8]/30 bg-[#eef3ff] px-4 py-1.5 text-[17px] font-semibold text-[#315be8]">
             <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: ACCENT }} />
             {atom.text}
@@ -49,7 +60,7 @@ function AtomView({ atom }: { atom: Atom }) {
       );
     case "tags":
       return (
-        <ul className="flex break-inside-avoid flex-wrap gap-2">
+        <ul data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`flex break-inside-avoid flex-wrap gap-2${zp.className}`}>
           {atom.items.map((t, i) => (
             <li key={i} className="rounded-full bg-[#eef3ff] px-4 py-1 text-[16px] font-medium text-[#315be8]">
               {t}
@@ -63,7 +74,7 @@ function AtomView({ atom }: { atom: Atom }) {
       const heading = atom.label ?? lines[0];
       const body = atom.label ? atom.text : lines.slice(1).join("\n");
       return (
-        <div className="break-inside-avoid rounded-xl border border-[#e6ebf7] bg-[#f7f9fe] px-4 py-3">
+        <div data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-inside-avoid rounded-xl border border-[#e6ebf7] bg-[#f7f9fe] px-4 py-3${zp.className}`}>
           {heading && <p className={`text-[17px] font-bold leading-snug ${atom.label ? "text-[#315be8]" : "text-[#20242d]"}`}>{heading}</p>}
           {body && <p className="mt-1 whitespace-pre-wrap text-[17px] leading-[1.55] text-[#3a4150]">{body}</p>}
         </div>
@@ -71,7 +82,7 @@ function AtomView({ atom }: { atom: Atom }) {
     }
     case "image":
       return (
-        <figure className="break-inside-avoid">
+        <figure data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-inside-avoid${zp.className}`}>
           {/* 크기를 미리 알고 있어서 불러오기 전에도 자리가 정해진다. 서명 주소 이미지라 next/image 최적화를 쓰지 않는다 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -91,13 +102,13 @@ function AtomView({ atom }: { atom: Atom }) {
       if (atom.callout) {
         // 강조 상자: 가장 중요한 한 문장(결과 요약)
         return (
-          <p className="break-inside-avoid whitespace-pre-wrap rounded-2xl border-l-[6px] bg-[#f0f4ff] px-5 py-4 text-[21px] font-semibold leading-snug" style={{ borderColor: ACCENT }}>
+          <p data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-inside-avoid whitespace-pre-wrap rounded-2xl border-l-[6px] bg-[#f0f4ff] px-5 py-4 text-[21px] font-semibold leading-snug${zp.className}`} style={{ borderColor: ACCENT }}>
             {atom.text}
           </p>
         );
       }
       return (
-        <p className={`break-inside-avoid whitespace-pre-wrap text-[18px] leading-[1.6] ${atom.emphasis ? "font-semibold" : ""} ${atom.muted ? "text-[#626b79]" : ""}`}>
+        <p data-zone={zp["data-zone"]} data-zone-active={zp["data-zone-active"]} className={`break-inside-avoid whitespace-pre-wrap text-[18px] leading-[1.6] ${atom.emphasis ? "font-semibold" : ""} ${atom.muted ? "text-[#626b79]" : ""}${zp.className}`}>
           {atom.label && <strong className="mr-1.5 text-[16px] font-semibold text-[#315be8]">{atom.label}</strong>}
           {atom.text}
         </p>
@@ -158,14 +169,22 @@ function HeroIcon({ kind, size = 44 }: { kind: IconKind; size?: number }) {
 }
 
 /** 프로젝트 소개 첫 장의 위쪽: 제목(+목표), 대표 이미지, 정보 카드, 한 줄 소개 */
-function HeroTop({ hero }: { hero: IntroHero }) {
+function HeroTop({ hero, activeZone }: { hero: IntroHero; activeZone?: string | null }) {
+  const z = (zone: string) => zoneProps(zone, activeZone);
+  const attrs = (zone: string) => ({ "data-zone": zone, "data-zone-active": z(zone)["data-zone-active"] });
   return (
     <>
       <div className="flex items-start justify-between gap-8">
         <div className="min-w-0 flex-1">
-          <span className="inline-block rounded-full bg-[#eef3ff] px-4 py-1.5 text-[16px] font-semibold text-[#315be8]">{hero.pill}</span>
-          <p className="mt-4 text-[42px] font-bold leading-[1.2]">{hero.title}</p>
-          {hero.goal && <p className="mt-1 text-[28px] font-bold leading-[1.3] text-[#315be8]">{hero.goal}</p>}
+          <div {...attrs("프로젝트 정보")} className={z("프로젝트 정보").className.trim() || undefined}>
+            <span className="inline-block rounded-full bg-[#eef3ff] px-4 py-1.5 text-[16px] font-semibold text-[#315be8]">{hero.pill}</span>
+            <p className="mt-4 text-[42px] font-bold leading-[1.2]">{hero.title}</p>
+          </div>
+          {hero.goal && (
+            <p {...attrs("목표·검증 지표")} className={`mt-1 text-[28px] font-bold leading-[1.3] text-[#315be8]${z("목표·검증 지표").className}`}>
+              {hero.goal}
+            </p>
+          )}
         </div>
         {hero.image?.url && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -175,7 +194,8 @@ function HeroTop({ hero }: { hero: IntroHero }) {
             width={hero.image.width}
             height={hero.image.height}
             data-image-id={hero.image.imageId}
-            className="shrink-0 rounded-2xl border border-[#e2e6ec] bg-white object-contain"
+            {...attrs("대표 이미지")}
+            className={`shrink-0 rounded-2xl border border-[#e2e6ec] bg-white object-contain${z("대표 이미지").className}`}
             style={{ maxWidth: 300, maxHeight: 190, width: "auto", height: "auto" }}
           />
         )}
@@ -184,7 +204,7 @@ function HeroTop({ hero }: { hero: IntroHero }) {
       {hero.cards.length > 0 && (
         <div className="mt-5 grid border-t border-[#e2e6ec] pt-4" style={{ gridTemplateColumns: `repeat(${hero.cards.length}, minmax(0, 1fr))` }}>
           {hero.cards.map((c, i) => (
-            <div key={c.kind} className={`flex items-start gap-3 px-4 ${i === 0 ? "pl-0" : "border-l border-[#e2e6ec]"}`}>
+            <div key={c.kind} {...attrs(c.kind === "role" ? "역할" : "프로젝트 정보")} className={`flex items-start gap-3 px-4 ${i === 0 ? "pl-0" : "border-l border-[#e2e6ec]"}${z(c.kind === "role" ? "역할" : "프로젝트 정보").className}`}>
               <HeroIcon kind={c.kind} />
               <div className="min-w-0">
                 <p className="text-[15px] text-[#626b79]">{c.label}</p>
@@ -197,7 +217,7 @@ function HeroTop({ hero }: { hero: IntroHero }) {
       )}
 
       {hero.oneLine && (
-        <div className="mt-5 flex items-start gap-4 rounded-2xl bg-[#f0f4ff] px-6 py-4">
+        <div {...attrs("개요·선정 이유")} className={`mt-5 flex items-start gap-4 rounded-2xl bg-[#f0f4ff] px-6 py-4${z("개요·선정 이유").className}`}>
           <HeroIcon kind="goal" size={40} />
           <div className="min-w-0">
             <p className="text-[16px] font-semibold text-[#315be8]">한 줄 소개</p>
@@ -210,8 +230,10 @@ function HeroTop({ hero }: { hero: IntroHero }) {
 }
 
 /** 페이지 한 장. 화면 미리보기·전체 미리보기·인쇄·높이 재기가 모두 이 컴포넌트를 쓴다(spec 9.2: 같은 렌더러). */
-export function PageFrame({ page, total, bodyRef }: { page: PhysicalPage; total: number; bodyRef?: React.Ref<HTMLDivElement> }) {
+export function PageFrame({ page, total, bodyRef, activeZone }: { page: PhysicalPage; total: number; bodyRef?: React.Ref<HTMLDivElement>; activeZone?: string | null }) {
   const cover = page.cover;
+  const cz = (zone: string) => ({ "data-zone": zone, "data-zone-active": zoneProps(zone, activeZone)["data-zone-active"] });
+  const czc = (zone: string) => zoneProps(zone, activeZone).className;
   return (
     <div className="relative overflow-hidden bg-white text-[#20242d]" style={{ width: CANVAS_W, height: CANVAS_H }}>
       {cover ? (
@@ -221,12 +243,20 @@ export function PageFrame({ page, total, bodyRef }: { page: PhysicalPage; total:
           <div aria-hidden className="absolute" style={{ left: -140, bottom: -220, width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle at 60% 40%, #cfeaff 0%, rgba(255,255,255,0) 70%)" }} />
           <div aria-hidden className="absolute" style={{ right: 130, bottom: 96, width: 220, height: 220, borderRadius: "50%", border: "2px solid rgba(49,91,232,0.16)" }} />
           <div className="absolute inset-0 flex flex-col justify-center gap-6 px-[96px]">
-            {cover.targetRole && <span className="inline-block self-start rounded-full border border-[#dbe4ff] bg-white/80 px-5 py-2 text-[22px] font-semibold text-[#315be8]">{cover.targetRole}</span>}
-            <p className="text-[76px] font-bold leading-[1.1]">{cover.name}</p>
+            {cover.targetRole && (
+              <span {...cz("cover:targetRole")} className={`inline-block self-start rounded-full border border-[#dbe4ff] bg-white/80 px-5 py-2 text-[22px] font-semibold text-[#315be8]${czc("cover:targetRole")}`}>
+                {cover.targetRole}
+              </span>
+            )}
+            <p {...cz("cover:name")} className={`text-[76px] font-bold leading-[1.1]${czc("cover:name")}`}>{cover.name}</p>
             <span aria-hidden className="block h-[8px] w-[96px] rounded-full" style={{ background: ACCENT }} />
-            {cover.tagline && <p className="max-w-[780px] text-[30px] leading-snug text-[#3a4150]">{cover.tagline}</p>}
+            {cover.tagline && (
+              <p {...cz("cover:tagline")} className={`max-w-[780px] text-[30px] leading-snug text-[#3a4150]${czc("cover:tagline")}`}>
+                {cover.tagline}
+              </p>
+            )}
             {(cover.email || cover.link) && (
-              <div className="mt-4 flex flex-col gap-3 text-[22px] text-[#4a5262]">
+              <div {...cz("cover:contact")} className={`mt-4 flex flex-col gap-3 text-[22px] text-[#4a5262]${czc("cover:contact")}`}>
                 {cover.email && (
                   <p className="flex items-center gap-3">
                     <HeroIcon kind="mail" size={40} />
@@ -247,11 +277,11 @@ export function PageFrame({ page, total, bodyRef }: { page: PhysicalPage; total:
         <>
           {/* 프로젝트 소개 첫 장: 위쪽 영역 아래에 남은 자리에 나머지 내용이 두 단으로 흐른다 */}
           <div className="absolute inset-x-0 top-0 flex flex-col" style={{ bottom: FOOTER_H, padding: "36px 56px 0" }}>
-            <HeroTop hero={page.hero} />
+            <HeroTop hero={page.hero} activeZone={activeZone} />
             <div ref={bodyRef} data-page-body style={{ flex: "1 1 0", minHeight: 0, columnCount: 2, columnGap: 40, columnFill: "auto", overflow: "hidden", marginTop: 18 }}>
               <div className="flex flex-col gap-2">
                 {page.atoms.map((a) => (
-                  <AtomView key={a.id} atom={a} />
+                  <AtomView key={a.id} atom={a} activeZone={activeZone} />
                 ))}
               </div>
             </div>
@@ -279,7 +309,7 @@ export function PageFrame({ page, total, bodyRef }: { page: PhysicalPage; total:
           >
             <div className="flex flex-col gap-2">
               {page.atoms.map((a) => (
-                <AtomView key={a.id} atom={a} />
+                <AtomView key={a.id} atom={a} activeZone={activeZone} />
               ))}
             </div>
           </div>
@@ -383,7 +413,7 @@ export function usePagination(doc: PortfolioDoc | null): Pagination {
 }
 
 /** 1280×720 캔버스를 넓이에 맞춰 줄여서 보여 준다 */
-export function ScaledPage({ page, total }: { page: PhysicalPage; total: number }) {
+export function ScaledPage({ page, total, activeZone }: { page: PhysicalPage; total: number; activeZone?: string | null }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
 
@@ -398,9 +428,9 @@ export function ScaledPage({ page, total }: { page: PhysicalPage; total: number 
   }, []);
 
   return (
-    <div ref={box} className="w-full overflow-hidden rounded-card border border-line shadow-card" style={{ aspectRatio: "16 / 9" }}>
+    <div ref={box} data-scaled-page className="w-full overflow-hidden rounded-card border border-line shadow-card" style={{ aspectRatio: "16 / 9" }}>
       <div style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-        <PageFrame page={page} total={total} />
+        <PageFrame page={page} total={total} activeZone={activeZone} />
       </div>
     </div>
   );

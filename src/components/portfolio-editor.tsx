@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { AnimatedMessage, SaveStatusChip } from "@/components/app-motion";
 import { useEffect, useState } from "react";
-import { orderedPages, PAGE_TYPE_LABEL, type PortfolioPageDoc } from "@/lib/portfolio/model";
+import { orderedPages, PAGE_TYPE_LABEL, type PortfolioDoc, type PortfolioPageDoc } from "@/lib/portfolio/model";
 import type { PortfolioEditorApi } from "@/lib/portfolio/use-portfolio-editor";
-import type { SectionKey } from "@/lib/validation/project-answers";
-import { OUTPUT_ZONES } from "@/templates/pm-v1";
+import { useDebounced } from "@/lib/use-debounced";
+import { pageOfZone } from "@/templates/pm-v1";
 import { GatedButton } from "./gated-button";
 import { Modal } from "./modal";
 import { ProjectCopyPanel } from "./portfolio-copy-panel";
 import { CoverForm, ProfileForm, SummaryForm } from "./portfolio-forms";
-import { PortfolioPageView } from "./portfolio-views";
+import { OutputPages } from "./output-pages";
+import { usePagination } from "./portfolio-output";
 import { ProfileImport } from "./profile-import";
 import { useWorkspace } from "./workspace-data";
 
@@ -129,10 +130,18 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
   const copies = [...doc.projects].sort((a, b) => a.sort_order - b.sort_order);
   const selectedCopy = selected.portfolio_project_id ? doc.projects.find((p) => p.id === selected.portfolio_project_id) : undefined;
 
-  const selectSectionPage = (copyId: string, section: SectionKey) => {
-    const type = OUTPUT_ZONES[section][0].page;
+  // 지금 입력 중인 항목이 미리보기의 어느 구역인지. 어느 페이지에서 정했는지도 함께 기억해서, 다른 페이지로 옮기면 강조가 사라진다.
+  const [zoneState, setZoneState] = useState<{ pageId: string; zone: string } | null>(null);
+  const activeZone = zoneState && zoneState.pageId === selected.id ? zoneState.zone : null;
+  /** 표지·Summary·프로필의 입력 칸에 포커스가 가면 현재 페이지의 그 구역을 강조한다 */
+  const markZone = (zone: string) => setZoneState({ pageId: selected.id, zone });
+  /** 프로젝트 사본의 입력 칸에 포커스가 가면 그 구역이 있는 페이지로 옮기고 강조한다 */
+  const selectZone = (copyId: string, zone: string) => {
+    const type = pageOfZone(zone);
     const page = doc.pages.find((p) => p.portfolio_project_id === copyId && p.type === type);
-    if (page) setSelectedId(page.id);
+    if (!page) return;
+    setSelectedId(page.id);
+    setZoneState({ pageId: page.id, zone });
   };
 
   const copyMine = async () => {
@@ -145,16 +154,16 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
   };
 
   const panel = !selected ? null : selected.type === "cover" ? (
-    <CoverForm cover={doc.cover} onChange={api.setCover} />
+    <CoverForm cover={doc.cover} onChange={api.setCover} onActiveZone={markZone} />
   ) : selected.type === "summary" ? (
-    <SummaryForm summary={doc.summary} projects={copies} onChange={api.setSummary} />
+    <SummaryForm summary={doc.summary} projects={copies} onChange={api.setSummary} onActiveZone={markZone} />
   ) : selected.type === "profile" ? (
     <div className="flex flex-col gap-4">
       <ProfileImport current={doc.profile} onApply={api.setProfile} />
-      <ProfileForm profile={doc.profile} onChange={api.setProfile} />
+      <ProfileForm profile={doc.profile} onChange={api.setProfile} onActiveZone={markZone} />
     </div>
   ) : selectedCopy ? (
-    <ProjectCopyPanel key={selectedCopy.id} api={api} copy={selectedCopy} page={selected} onSelectSection={selectSectionPage} />
+    <ProjectCopyPanel key={selectedCopy.id} api={api} copy={selectedCopy} page={selected} onSelectZone={selectZone} />
   ) : null;
 
   const list = (
@@ -320,8 +329,8 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
         </aside>
         <section className={`xl:sticky xl:top-4 xl:self-start ${tab === "preview" ? "" : "hidden xl:block"}`} aria-label="페이지 미리보기">
           <h2 className="mb-2 text-base font-bold">미리보기 · {selected ? PAGE_TYPE_LABEL[selected.type] : ""}</h2>
-          {selected && <PortfolioPageView doc={doc} page={selected} />}
-          <p className="mt-2 text-sm text-muted">편집용 화면이에요. 실제 출력은 빈 자리와 이 안내 없이 나와요.</p>
+          {selected && <OutputPreview doc={doc} page={selected} activeZone={activeZone} />}
+          <p className="mt-2 text-sm text-muted">PDF로 저장했을 때와 같은 모습이에요. 비어 있는 부분은 출력에서도 나오지 않아요.</p>
         </section>
         <section className={tab === "edit" ? "" : "hidden xl:block"} aria-label="입력">
           {panel}
@@ -352,4 +361,21 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
       )}
     </main>
   );
+}
+
+/**
+ * 가운데 미리보기. 미리보기·PDF 저장 화면과 같은 출력용 렌더러(16:9 페이지, 쪽 나누기)를 그대로 써서 저장했을 때와 같은 모습을 보여 준다(spec 9.2).
+ * 한 페이지가 여러 장으로 나뉘면 나뉜 장을 모두 보여 준다. 출력과 같게 빈 구역은 숨기고, 페이지 전체가 비었을 때만 안내를 띄운다.
+ * 오른쪽에서 지금 입력 중인 구역(activeZone)은 파란 윤곽선과 "작성 위치" 표시로 알린다. 이 표시는 출력에는 나오지 않는다.
+ */
+function OutputPreview({ doc, page, activeZone }: { doc: PortfolioDoc; page: PortfolioPageDoc; activeZone: string | null }) {
+  const pagination = usePagination(useDebounced(doc, 300));
+  const mine = pagination.pages.filter((p) => p.logicalId === page.id);
+
+  const note = (text: string) => <p className="rounded-card border border-dashed border-line bg-panel p-6 text-sm text-muted">{text}</p>;
+  if (page.hidden) return note("이 페이지는 포트폴리오에 넣지 않도록 해서 출력에 나오지 않아요. 왼쪽에서 \u2018넣기\u2019를 켜면 나와요.");
+  if (pagination.status === "measuring" && mine.length === 0) return note("미리보기를 그리는 중이에요…");
+  if (mine.length === 0) return note("아직 쓴 내용이 없어요. 오른쪽에서 입력하면 여기에 나타나요. 비어 있는 페이지는 출력에도 나오지 않아요.");
+
+  return <OutputPages pages={mine} total={pagination.pages.length} activeZone={activeZone} />;
 }

@@ -14,7 +14,7 @@ import { useProjectAssets } from "@/lib/use-project-assets";
 import { GatedButton } from "./gated-button";
 import { ImageSlot } from "./image-slot";
 import { Modal } from "./modal";
-import { ProjectPagePreview } from "./page-preview";
+import { ProjectOutputPreview } from "./project-output-preview";
 import { SectionForm } from "./section-form";
 import type { LocalProjectData } from "./workspace-data";
 
@@ -240,13 +240,13 @@ export function ProjectEditor(props: Props) {
     <div className="rounded-card border border-line bg-panel p-4">
       <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} className="hidden border-b border-line pb-4 xl:flex" />
       <div className="xl:mt-4">
-        <ProjectPagePreview
+        <ProjectOutputPreview
           title={title}
           answers={answers}
           activeZone={activeZone}
           page={page}
           onPageChange={setPage}
-          images={assets?.items ?? []}
+          images={assets?.items}
           onCollapse={() => setPreviewOpen(false)}
         />
       </div>

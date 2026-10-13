@@ -26,6 +26,7 @@ function TextField({
   error,
   hint,
   placeholder,
+  onFocusZone,
 }: {
   label: string;
   value: string;
@@ -35,10 +36,12 @@ function TextField({
   error?: string;
   hint?: string;
   placeholder?: string;
+  /** 이 칸에 포커스가 들어오면 알린다(미리보기에서 "작성 위치"를 강조하려고) */
+  onFocusZone?: () => void;
 }) {
   const id = useId();
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1" onFocusCapture={onFocusZone}>
       <label htmlFor={id} className="text-sm font-medium">
         {label}
       </label>
@@ -61,7 +64,10 @@ const card = "rounded-card border border-line bg-panel p-4";
 
 // ---- 표지 (spec 8.3) ----
 
-export function CoverForm({ cover, onChange }: { cover: Cover; onChange: (c: Cover) => void }) {
+/** 입력 칸이 속한 미리보기 구역을 알리는 콜백. 예: "cover:name", "summary:0", "profile:education" */
+type ZoneCallback = (zone: string) => void;
+
+export function CoverForm({ cover, onChange, onActiveZone }: { cover: Cover; onChange: (c: Cover) => void; onActiveZone?: ZoneCallback }) {
   const set = (patch: Partial<Cover>) => onChange({ ...cover, ...patch });
   const emailError = cover.email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cover.email) ? "이메일 주소 형식을 확인해 주세요." : undefined;
   const linkError = cover.link !== "" && !/^https?:\/\//i.test(cover.link) ? "http 또는 https 주소만 입력할 수 있어요." : undefined;
@@ -69,11 +75,11 @@ export function CoverForm({ cover, onChange }: { cover: Cover; onChange: (c: Cov
   return (
     <div className={`${card} flex flex-col gap-4`}>
       <h3 className="text-lg font-bold">표지</h3>
-      <TextField label="이름 (출력에 꼭 필요해요)" value={cover.name} maxLength={L.name} onChange={(name) => set({ name })} />
-      <TextField label="지원 직무" value={cover.targetRole} maxLength={L.targetRole} onChange={(targetRole) => set({ targetRole })} placeholder="예: 서비스 기획" />
-      <TextField label="한 줄 소개" value={cover.tagline} maxLength={L.tagline} onChange={(tagline) => set({ tagline })} />
+      <TextField label="이름 (출력에 꼭 필요해요)" value={cover.name} maxLength={L.name} onChange={(name) => set({ name })} onFocusZone={() => onActiveZone?.("cover:name")} />
+      <TextField label="지원 직무" value={cover.targetRole} maxLength={L.targetRole} onChange={(targetRole) => set({ targetRole })} placeholder="예: 서비스 기획" onFocusZone={() => onActiveZone?.("cover:targetRole")} />
+      <TextField label="한 줄 소개" value={cover.tagline} maxLength={L.tagline} onChange={(tagline) => set({ tagline })} onFocusZone={() => onActiveZone?.("cover:tagline")} />
 
-      <div className="rounded-control bg-canvas p-3">
+      <div className="rounded-control bg-canvas p-3" onFocusCapture={() => onActiveZone?.("cover:contact")}>
         <label className="flex min-h-11 items-center gap-3">
           <input type="checkbox" checked={cover.includeContact} onChange={(e) => set({ includeContact: e.target.checked })} className="size-5 accent-accent" />
           <span className="font-medium">연락처를 출력에 포함해요</span>
@@ -81,8 +87,8 @@ export function CoverForm({ cover, onChange }: { cover: Cover; onChange: (c: Cov
         <p className="mt-1 text-sm text-muted">기본은 꺼져 있어요. 외부에 유출되지 않도록 제출할 때만 켜 두는 것을 권해요.</p>
       </div>
 
-      <TextField label="이메일 (선택)" value={cover.email} maxLength={L.email} onChange={(email) => set({ email })} error={emailError} />
-      <TextField label="링크 (선택)" value={cover.link} maxLength={L.url} onChange={(link) => set({ link })} error={linkError} placeholder="https://" />
+      <TextField label="이메일 (선택)" value={cover.email} maxLength={L.email} onChange={(email) => set({ email })} error={emailError} onFocusZone={() => onActiveZone?.("cover:contact")} />
+      <TextField label="링크 (선택)" value={cover.link} maxLength={L.url} onChange={(link) => set({ link })} error={linkError} placeholder="https://" onFocusZone={() => onActiveZone?.("cover:contact")} />
     </div>
   );
 }
@@ -117,7 +123,17 @@ const addButton = "min-h-11 self-start rounded-control border border-accent px-4
 
 // ---- Summary (spec 8.3: 1~5개) ----
 
-export function SummaryForm({ summary, projects, onChange }: { summary: Summary; projects: PortfolioDoc["projects"]; onChange: (s: Summary) => void }) {
+export function SummaryForm({
+  summary,
+  projects,
+  onChange,
+  onActiveZone,
+}: {
+  summary: Summary;
+  projects: PortfolioDoc["projects"];
+  onChange: (s: Summary) => void;
+  onActiveZone?: ZoneCallback;
+}) {
   const items = summary.items;
   const setItem = (index: number, patch: Partial<SummaryItem>) => onChange({ items: items.map((it, i) => (i === index ? { ...it, ...patch } : it)) });
   const toggleProject = (index: number, projectId: string, on: boolean) => {
@@ -133,7 +149,7 @@ export function SummaryForm({ summary, projects, onChange }: { summary: Summary;
       </div>
 
       {items.map((item, index) => (
-        <fieldset key={item.id} className="flex flex-col gap-3 rounded-control border border-line p-3">
+        <fieldset key={item.id} className="flex flex-col gap-3 rounded-control border border-line p-3" onFocusCapture={() => onActiveZone?.(`summary:${index}`)}>
           <legend className="px-1 text-sm font-medium">항목 {index + 1}</legend>
           <TextField label="제목" value={item.title} maxLength={L.summaryTitle} onChange={(title) => setItem(index, { title })} />
           <TextField label="설명" value={item.description} maxLength={L.summaryDescription} multiline onChange={(description) => setItem(index, { description })} />
@@ -169,17 +185,17 @@ export function SummaryForm({ summary, projects, onChange }: { summary: Summary;
 
 // ---- 프로필 (spec 8.3: 소개 600자, 교육·경력·자격증 각 10개, 도구 20개) ----
 
-export function ProfileForm({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
+export function ProfileForm({ profile, onChange, onActiveZone }: { profile: Profile; onChange: (p: Profile) => void; onActiveZone?: ZoneCallback }) {
   const set = (patch: Partial<Profile>) => onChange({ ...profile, ...patch });
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={`${card} flex flex-col gap-4`}>
+      <div className={`${card} flex flex-col gap-4`} onFocusCapture={() => onActiveZone?.("profile:intro")}>
         <h3 className="text-lg font-bold">프로필</h3>
         <TextField label="소개" value={profile.intro} maxLength={L.profileIntro} multiline onChange={(intro) => set({ intro })} />
       </div>
 
-      <div className={`${card} flex flex-col gap-3`}>
+      <div className={`${card} flex flex-col gap-3`} onFocusCapture={() => onActiveZone?.("profile:education")}>
         <h3 className="font-bold">
           교육 <span className="text-sm font-normal text-muted">({profile.education.length}/{L.education})</span>
         </h3>
@@ -203,7 +219,7 @@ export function ProfileForm({ profile, onChange }: { profile: Profile; onChange:
         )}
       </div>
 
-      <div className={`${card} flex flex-col gap-3`}>
+      <div className={`${card} flex flex-col gap-3`} onFocusCapture={() => onActiveZone?.("profile:careers")}>
         <h3 className="font-bold">
           경력 <span className="text-sm font-normal text-muted">({profile.careers.length}/{L.careers})</span>
         </h3>
@@ -227,7 +243,7 @@ export function ProfileForm({ profile, onChange }: { profile: Profile; onChange:
         )}
       </div>
 
-      <div className={`${card} flex flex-col gap-3`}>
+      <div className={`${card} flex flex-col gap-3`} onFocusCapture={() => onActiveZone?.("profile:certificates")}>
         <h3 className="font-bold">
           자격증 <span className="text-sm font-normal text-muted">({profile.certificates.length}/{L.certificates})</span>
         </h3>
@@ -250,7 +266,7 @@ export function ProfileForm({ profile, onChange }: { profile: Profile; onChange:
         )}
       </div>
 
-      <div className={`${card} flex flex-col gap-3`}>
+      <div className={`${card} flex flex-col gap-3`} onFocusCapture={() => onActiveZone?.("profile:tools")}>
         <h3 className="font-bold">
           도구 <span className="text-sm font-normal text-muted">({profile.tools.length}/{L.tools})</span>
         </h3>

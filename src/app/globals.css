@@ -180,3 +180,12 @@ h2 {
     transform: none !important;
   }
 }
+
+/* 편집 화면 미리보기에서 지금 작성 중인 구역을 알리는 윤곽선 (출력·PDF에는 쓰이지 않는다).
+   윤곽선을 구역 안쪽으로 그려서, 페이지 가장자리나 단 경계(overflow: hidden)에 닿아도 잘리지 않게 한다. */
+.zone-active {
+  outline: 3px solid rgb(49 91 232 / 0.75);
+  outline-offset: -3px;
+  border-radius: 10px;
+  background-color: rgb(49 91 232 / 0.07);
+}
