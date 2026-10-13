@@ -175,7 +175,7 @@ export function ProjectEditor(props: Props) {
 
   const form = (
     <div className="flex flex-col gap-4" onBlurCapture={() => void saver.current?.flush()}>
-      <AiDraftImport answers={answers} onApply={onAnswersChange} />
+      <AiDraftImport projectId={base.id} answers={answers} onApply={onAnswersChange} />
       <div>
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold">{step.label}</h2>

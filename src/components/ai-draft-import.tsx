@@ -25,12 +25,16 @@ const PASTE_ERROR = {
  * 받은 결과(JSON)를 다시 붙여 넣으면, 사용자가 쓴 칸은 그대로 두고 빈 칸만 채운다.
  * 이 서비스는 문서를 받지 않고 AI를 부르지도 않는다(서버·API 키·요금이 없다). 로그인 없이 써 보는 화면에서도 쓸 수 있다.
  */
-export function AiDraftImport({ answers, onApply }: { answers: ProjectAnswers; onApply: (next: ProjectAnswers) => void }) {
+export function AiDraftImport({ projectId, answers, onApply }: { projectId: string; answers: ProjectAnswers; onApply: (next: ProjectAnswers) => void }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState<"idle" | "ok" | "failed">("idle");
   const [pasted, setPasted] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
+  // 한 번 쓰고 나면 필요 없으니 카드를 접어 둘 수 있다. 접은 상태는 이 프로젝트만 이 브라우저에 기억한다(없어도 동작).
+  // 다른 프로젝트나 새 프로젝트는 언제나 펼친 채로 시작한다.
+  const storageKey = `ai-draft-collapsed:${projectId}`;
+  const [collapsed, setCollapsed] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
 
   // 붙여 넣는 사이에 사용자가 쓴 내용 위에 합쳐야 하므로, 누르는 순간의 최신 답변을 쓴다
@@ -38,6 +42,29 @@ export function AiDraftImport({ answers, onApply }: { answers: ProjectAnswers; o
   useEffect(() => {
     latest.current = answers;
   }, [answers]);
+
+  useEffect(() => {
+    let saved = false;
+    try {
+      saved = localStorage.getItem(storageKey) === "1";
+    } catch {
+      // 저장소를 못 쓰면 기본값(펼침)을 쓴다
+    }
+    // 프로젝트가 바뀌면 그 프로젝트의 기억을 새로 읽는다(기억이 없으면 펼침). 서버 렌더와 맞추려고 처음엔 펼친 채로 그린 뒤 반영한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 브라우저 저장소 값은 렌더 중에 읽을 수 없다
+    setCollapsed(saved);
+  }, [storageKey]);
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      if (next) localStorage.setItem(storageKey, "1");
+      else localStorage.removeItem(storageKey); // 펼친 것이 기본이라 기억해 둘 필요가 없다
+    } catch {
+      // 기억하지 못해도 이번 화면에서는 바뀐다
+    }
+  };
 
   const prompt = buildCopyPrompt();
 
@@ -86,21 +113,60 @@ export function AiDraftImport({ answers, onApply }: { answers: ProjectAnswers; o
   };
 
   return (
-    <div className="rounded-card border border-line bg-panel p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="break-keep font-semibold">작성해 둔 기획서가 있나요?</p>
-          <p className="mt-0.5 break-keep text-pretty text-sm text-muted">기획서나 PRD에서 핵심 내용을 추출해 포트폴리오 10단계의 초안을 빠르게 완성해 보세요.</p>
-        </div>
-        <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-control border border-accent px-4 text-sm font-medium text-accent hover:bg-accent-soft">
-          AI로 초안 만들기
+    <div className={`rounded-card border border-line bg-panel ${collapsed ? "" : "p-4"}`}>
+      {collapsed ? (
+        // 접힌 모양: 한 줄. 누르면 다시 펼친다
+        <button type="button" onClick={toggle} aria-expanded={false} aria-controls="ai-draft-body" className="flex min-h-11 w-full items-center justify-between gap-3 rounded-card px-4 text-left hover:bg-canvas">
+          <span className="break-keep text-sm font-medium text-muted">
+            작성해 둔 기획서가 있나요? <span className="text-accent">AI로 초안 만들기</span>
+          </span>
+          <span className="shrink-0 text-muted"><svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg></span>
         </button>
-      </div>
+      ) : (
+        <div id="ai-draft-body">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="break-keep font-semibold">작성해 둔 기획서가 있나요?</p>
+              <p className="mt-0.5 break-keep text-pretty text-sm text-muted">기획서나 PRD에서 핵심 내용을 추출해 포트폴리오 10단계의 초안을 빠르게 완성해 보세요.</p>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setOpen(true)} className="min-h-11 rounded-control border border-accent px-4 text-sm font-medium text-accent hover:bg-accent-soft">
+                AI로 초안 만들기
+              </button>
+              <button
+                type="button"
+                onClick={toggle}
+                aria-expanded
+                aria-controls="ai-draft-body"
+                aria-label="AI 초안 박스 접기"
+                title="접기"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-ink"
+              >
+                <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 15l6-6 6 6" /></svg>
+              </button>
+            </div>
+          </div>
 
-      {message && (
-        <p role="status" className={`mt-3 text-sm ${message.tone === "ok" ? "text-accent" : "text-muted"}`}>
-          {message.text}
-        </p>
+          {message && (
+            // 결과 안내는 다 확인한 뒤에 사용자가 닫을 수 있다(닫아도 채워진 내용은 그대로다)
+            <div className="mt-3 flex items-start justify-between gap-2">
+              <p role="status" className={`text-sm ${message.tone === "ok" ? "text-accent" : "text-muted"}`}>
+                {message.text}
+              </p>
+              <button
+                type="button"
+                onClick={() => setMessage(null)}
+                aria-label="안내 닫기"
+                title="닫기"
+                className="-mr-2 -mt-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-ink"
+              >
+                <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {open && (
