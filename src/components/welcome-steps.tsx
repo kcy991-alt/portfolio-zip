@@ -82,6 +82,8 @@ const STEPS = [
     tag: "질문에 답하기",
     title: "질문에 답하며\n포트폴리오를 채워가요",
     body: "10단계 질문 중 하나를 선택하면 포트폴리오에서 해당 내용이 들어갈 위치를 미리 보여줘요. 원하는 순서대로 자유롭게 작성해 보세요.",
+    // 기획서가 있으면 이 단계를 AI로 앞당길 수 있다는 점을 눈에 띄게 알린다(spec F16)
+    extra: { t: "✨ 기획서가 있다면 AI로 초안부터", d: "내 AI에 기획서와 제공된 프롬프트를 보내고, 결과를 붙여넣으면 초안이 완성돼요." },
     visual: (
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <Pop delay={0.1} className="rounded-control border border-line bg-panel p-3">
@@ -207,6 +209,12 @@ export function WelcomeSteps() {
               <div className="rounded-card bg-accent-soft/60 p-4">{step.visual}</div>
               <h1 className="mt-6 whitespace-pre-line text-[22px] font-bold leading-[30px] sm:text-[28px] sm:leading-[38px]">{step.title}</h1>
               <p className="mt-3 text-muted">{step.body}</p>
+              {step.extra && (
+                <div className="mt-4 rounded-control border border-accent/30 bg-accent-soft px-4 py-3">
+                  <p className="font-semibold text-accent">{step.extra.t}</p>
+                  <p className="mt-1 text-sm text-muted">{step.extra.d}</p>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         </AutoHeight>

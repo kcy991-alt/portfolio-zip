@@ -72,7 +72,14 @@ const COMPARE = [
 
 const HOW = [
   { n: "STEP 01", icon: "✍️", t: "프로젝트가 끝나면 바로 기록해요.", d: "기억이 선명할 때 프로젝트 이름, 역할, 문제만 먼저 적어도 괜찮아요." },
-  { n: "STEP 02", icon: "💬", t: "10단계 질문을 따라 경험을 구체화해요", d: "질문과 예시를 참고해 차근차근 작성해요. 지금 기억나지 않는 내용은 나중에 채워도 돼요." },
+  {
+    n: "STEP 02",
+    icon: "💬",
+    t: "10단계 질문을 따라 경험을 구체화해요",
+    d: "질문과 예시를 참고해 차근차근 작성해요. 지금 기억나지 않는 내용은 나중에 채워도 돼요.",
+    // 기획서가 있으면 이 단계를 AI로 앞당길 수 있다는 점을 눈에 띄게 알린다. portfolio_zip이 문서를 읽는 것이 아니라 사용자가 자기 AI를 쓰는 방식이다(spec F16).
+    highlight: { t: "✨ 기획서가 있다면, AI로 초안부터", d: "내 AI에 기획서와 제공된 프롬프트를 보내고, 결과를 붙여넣으면 초안이 완성돼요." },
+  },
   { n: "STEP 03", icon: "📄", t: "필요한 프로젝트를 골라 포트폴리오로 만들어요", d: "지원할 프로젝트를 골라 하나로 묶고, PDF로 저장해요.", note: "PDF 저장은 컴퓨터에서 하는 것을 권장해요." },
 ];
 
@@ -242,6 +249,12 @@ export default function Home() {
                   <p className="mt-4 text-sm font-bold tracking-wide text-accent">{s.n}</p>
                   <h3 className="mt-2 text-balance text-xl font-bold leading-snug">{s.t}</h3>
                   <p className="mt-3 text-balance text-muted">{s.d}</p>
+                  {s.highlight && (
+                    <div className="mt-4 w-full rounded-control border border-accent/30 bg-accent-soft px-4 py-3">
+                      <p className="text-balance font-bold text-accent">{s.highlight.t}</p>
+                      <p className="mt-1 text-balance text-sm text-muted">{s.highlight.d}</p>
+                    </div>
+                  )}
                   {s.note && <p className="mt-3 rounded-full bg-canvas px-3 py-1 text-sm text-muted">{s.note}</p>}
                   {i < HOW.length - 1 && (
                     <span aria-hidden className="absolute -right-7 top-1/2 hidden -translate-y-1/2 text-2xl text-accent md:block">
