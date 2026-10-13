@@ -91,7 +91,7 @@ function Sidebar({ onNavigate, account, onClose }: { onNavigate?: () => void; ac
   return (
     <nav aria-label="프로젝트 아카이브" className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <Link href="/workspace" onClick={onNavigate} className="inline-flex min-h-11 items-center text-base" aria-label="프로젝트 아카이브로">
+        <Link href="/" onClick={onNavigate} className="inline-flex min-h-11 items-center text-base" aria-label="portfolio_zip 첫 화면으로">
           <Logo />
         </Link>
         {onClose && (
@@ -339,7 +339,9 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
           >
             메뉴
           </button>
-          <Logo />
+          <Link href="/" className="inline-flex min-h-11 items-center" aria-label="portfolio_zip 첫 화면으로">
+            <Logo />
+          </Link>
         </header>
         <div id="content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
           {children}
