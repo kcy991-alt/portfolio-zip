@@ -14,6 +14,7 @@ import { useProjectAssets } from "@/lib/use-project-assets";
 import { GatedButton } from "./gated-button";
 import { ImageSlot } from "./image-slot";
 import { Modal } from "./modal";
+import { AiDraftImport } from "./ai-draft-import";
 import { ProjectOutputPreview } from "./project-output-preview";
 import { SectionForm } from "./section-form";
 import type { LocalProjectData } from "./workspace-data";
@@ -174,8 +175,34 @@ export function ProjectEditor(props: Props) {
 
   const form = (
     <div className="flex flex-col gap-4" onBlurCapture={() => void saver.current?.flush()}>
+      <AiDraftImport answers={answers} onApply={onAnswersChange} />
       <div>
-        <h2 className="text-xl font-bold">{step.label}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">{step.label}</h2>
+          {/* 입력 칸 맨 아래까지 내려가지 않고도 단계를 옮길 수 있는 작은 아이콘. 양쪽을 항상 보이게 두고, 끝 단계에서는 흐리게(비활성) 한다. 마지막 단계는 아래쪽 "포트폴리오 만들기"로 이어진다 */}
+          <div className="flex shrink-0 items-center">
+            {(
+              [
+                { label: "이전 단계로", title: "이전 단계", to: stepIndex - 1, disabled: stepIndex === 0, path: "M19 12H5M11 6l-6 6 6 6" },
+                { label: "다음 단계로", title: "다음 단계", to: stepIndex + 1, disabled: stepIndex === STEPS.length - 1, path: "M5 12h14M13 6l6 6-6 6" },
+              ] as const
+            ).map((b) => (
+              <button
+                key={b.label}
+                type="button"
+                disabled={b.disabled}
+                onClick={() => goToStep(b.to)}
+                aria-label={b.label}
+                title={b.title}
+                className="flex size-11 items-center justify-center rounded-full text-muted hover:bg-canvas hover:text-accent disabled:cursor-default disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+              >
+                <svg aria-hidden width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={b.path} />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </div>
         {step.intro ? (
           <p className="mt-2 text-muted">{step.intro}</p>
         ) : (
