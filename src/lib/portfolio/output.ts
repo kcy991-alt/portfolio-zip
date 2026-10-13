@@ -293,6 +293,11 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
         atoms.push(mk({ kind: "zoneTitle", text: "경력" }));
         for (const c of careers) atoms.push(mk({ kind: "bullet", label: c.period.trim() || undefined, text: [[c.org.trim(), c.role.trim()].filter(Boolean).join(" · "), c.description.trim()].filter(Boolean).join("\n") }));
       }
+      const certs = p.certificates.filter((c) => c.name.trim());
+      if (certs.length) {
+        atoms.push(mk({ kind: "zoneTitle", text: "자격증" }));
+        for (const c of certs) atoms.push(mk({ kind: "bullet", label: c.date.trim() || undefined, text: [c.name.trim(), c.issuer.trim()].filter(Boolean).join(" · ") }));
+      }
       const tools = p.tools.filter((t) => t.name.trim());
       if (tools.length) {
         atoms.push(mk({ kind: "zoneTitle", text: "도구" }));

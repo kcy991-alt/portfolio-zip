@@ -6,7 +6,7 @@ import { AnimatedMessage, SaveStatusChip } from "@/components/app-motion";
 import { api, ApiError } from "@/lib/api/client";
 import { Autosaver, type SaveResult, type SaveStatus } from "@/lib/autosave";
 import { pageOfZone, STEPS, zoneOfField, type PageType } from "@/templates/pm-v1";
-import { STEP_STATUS_LABEL, stepStatus } from "@/lib/step-status";
+import { StepProgress } from "./step-progress";
 import { SECTION_FORMS } from "@/templates/pm-v1/fields";
 import type { ProjectAnswers, SectionKey } from "@/lib/validation/project-answers";
 import { REPRESENTATIVE } from "@/lib/storage/asset-limits";
@@ -235,16 +235,22 @@ export function ProjectEditor(props: Props) {
     </div>
   );
 
+  // 단계·진행률·미리보기를 한 카드에 모아, 어디를 쓰고 있는지 한눈에 보이게 한다
   const preview = (
-    <ProjectPagePreview
-      title={title}
-      answers={answers}
-      activeZone={activeZone}
-      page={page}
-      onPageChange={setPage}
-      images={assets?.items ?? []}
-      onCollapse={() => setPreviewOpen(false)}
-    />
+    <div className="rounded-card border border-line bg-panel p-4">
+      <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} className="hidden border-b border-line pb-4 xl:flex" />
+      <div className="xl:mt-4">
+        <ProjectPagePreview
+          title={title}
+          answers={answers}
+          activeZone={activeZone}
+          page={page}
+          onPageChange={setPage}
+          images={assets?.items ?? []}
+          onCollapse={() => setPreviewOpen(false)}
+        />
+      </div>
+    </div>
   );
 
   return (
@@ -325,28 +331,8 @@ export function ProjectEditor(props: Props) {
           </p>
         )}
 
-        {/* 현재 단계와 단계 선택은 한 묶음. 안내 문구는 보조 정보로 아래에 작게 둔다 */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p className="text-base font-semibold" aria-live="polite">
-            {step.order}/{STEPS.length} 단계 · {step.label}
-            <span className="ml-2 rounded-full bg-canvas px-2 py-0.5 align-middle text-xs font-medium text-muted">{STEP_STATUS_LABEL[stepStatus(step.key, answers)]}</span>
-          </p>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted">단계 선택</span>
-            <select value={stepIndex} onChange={(e) => goToStep(Number(e.target.value))} className="min-h-11 rounded-control border border-line bg-panel px-2">
-              {STEPS.map((x, i) => (
-                <option key={x.key} value={i}>
-                  {x.order}. {x.label} · {STEP_STATUS_LABEL[stepStatus(x.key, answers)]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <p className="mt-1 text-sm text-muted">모든 질문에 답하지 않아도 괜찮아요. 필요한 내용부터 작성해 보세요.</p>
-        {/* 단계 위치 표시 — 완료·품질 점수가 아니다 */}
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
-          <div className="h-full bg-accent transition-all" style={{ width: `${(step.order / STEPS.length) * 100}%` }} />
-        </div>
+        {/* 넓은 화면에서는 단계·진행률이 오른쪽 미리보기 카드에 들어간다. 좁은 화면이나 미리보기를 접었을 때만 여기에 보인다 */}
+        <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} className={`mt-3 ${previewOpen ? "xl:hidden" : ""}`} />
 
         {/* 1,280px 미만: 작성/미리보기 탭 전환 */}
         <div role="tablist" aria-label="화면 전환" className="mt-3 flex gap-2 xl:hidden">

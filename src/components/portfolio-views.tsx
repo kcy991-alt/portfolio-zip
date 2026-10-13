@@ -57,11 +57,11 @@ function SummaryView({ doc }: { doc: PortfolioDoc }) {
 
 function ProfileView({ doc }: { doc: PortfolioDoc }) {
   const { profile } = doc;
-  const nothing = !profile.intro && profile.education.length === 0 && profile.careers.length === 0 && profile.tools.length === 0;
+  const nothing = !profile.intro && profile.education.length === 0 && profile.careers.length === 0 && profile.certificates.length === 0 && profile.tools.length === 0;
   return (
     <div className={pageClass}>
       <h2 className="text-xl font-bold">프로필</h2>
-      {nothing && empty("소개, 교육, 경력, 도구를 쓰면 여기에 나와요. 비어 있는 영역은 출력에서 숨겨져요.")}
+      {nothing && empty("소개, 교육, 경력, 자격증, 도구를 쓰면 여기에 나와요. 비어 있는 영역은 출력에서 숨겨져요.")}
       {profile.intro && <p className="whitespace-pre-wrap">{profile.intro}</p>}
       {profile.education.length > 0 && (
         <section>
@@ -86,6 +86,19 @@ function ProfileView({ doc }: { doc: PortfolioDoc }) {
                 <span className="text-muted">{c.period}</span> <strong>{c.org}</strong>
                 {c.role ? ` · ${c.role}` : ""}
                 {c.description && <span className="block text-sm text-muted">{c.description}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {profile.certificates.length > 0 && (
+        <section>
+          <h3 className="text-sm font-medium text-muted">자격증</h3>
+          <ul className="mt-1 flex flex-col gap-1 text-[15px]">
+            {profile.certificates.map((c) => (
+              <li key={c.id}>
+                <span className="text-muted">{c.date}</span> <strong>{c.name || "이름 없음"}</strong>
+                {c.issuer ? ` · ${c.issuer}` : ""}
               </li>
             ))}
           </ul>

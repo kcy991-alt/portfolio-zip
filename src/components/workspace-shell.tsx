@@ -2,14 +2,84 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { useWorkspace } from "@/components/workspace-data";
 
-function Sidebar({ onNavigate, account }: { onNavigate?: () => void; account?: React.ReactNode }) {
+/** 사이드바 맨 위 아이콘: 패널 왼쪽 칸이 채워진 모양. 펼쳐 있으면 접기, 접혀 있으면 펼치기 버튼이다. */
+export function SidebarToggleIcon() {
+  return (
+    <svg aria-hidden width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" />
+      <path d="M7.5 3.5v13" />
+    </svg>
+  );
+}
+
+/**
+ * 구역 제목. 누르면 그 구역 전체 화면이 열리고, 그 구역의 하위 메뉴가 아래에 펼쳐진다.
+ * 이미 그 구역 안에 있을 때 다시 누르면 하위 메뉴만 접거나 펼친다.
+ */
+function SectionLink({
+  href,
+  step,
+  label,
+  active,
+  open,
+  onNavigate,
+  onToggle,
+  controls,
+}: {
+  href: string;
+  step: number;
+  label: string;
+  active: boolean;
+  open: boolean;
+  onNavigate?: () => void;
+  onToggle: () => void;
+  controls: string;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={() => {
+        onToggle();
+        onNavigate?.();
+      }}
+      aria-expanded={open}
+      aria-controls={controls}
+      aria-current={active ? "page" : undefined}
+      className={`mb-1 flex min-h-11 items-center gap-2 rounded-control border px-2 font-semibold transition-colors ${
+        active ? "border-accent bg-accent-soft text-accent" : "border-line bg-panel text-ink hover:border-accent hover:bg-accent-soft hover:text-accent"
+      }`}
+    >
+      <span aria-hidden className={`flex size-5 shrink-0 items-center justify-center rounded-full text-xs ${active ? "bg-accent text-white" : "bg-canvas text-muted"}`}>
+        {step}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span aria-hidden className={`shrink-0 text-muted transition-transform ${open ? "rotate-90" : ""}`}>
+        ›
+      </span>
+    </Link>
+  );
+}
+
+function Sidebar({ onNavigate, account, onClose }: { onNavigate?: () => void; account?: React.ReactNode; onClose?: () => void }) {
   const pathname = usePathname();
   const { folders, projects, portfolios } = useWorkspace();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // 지금 보고 있는 화면이 속한 구역은 하위 메뉴를 펼쳐 둔다. 직접 접고 편 선택(manual)은 다른 화면으로 가면 초기화한다.
+  const inArchive = pathname.startsWith("/workspace") && pathname !== "/workspace/trash";
+  const inPortfolio = pathname.startsWith("/portfolios");
+  const [manual, setManual] = useState<{ archive?: boolean; portfolio?: boolean }>({});
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setManual({});
+  }
+  const archiveOpen = manual.archive ?? inArchive;
+  const portfolioOpen = manual.portfolio ?? inPortfolio;
 
   const toggle = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
 
@@ -20,21 +90,52 @@ function Sidebar({ onNavigate, account }: { onNavigate?: () => void; account?: R
 
   return (
     <nav aria-label="프로젝트 아카이브" className="flex h-full flex-col gap-4 overflow-y-auto p-4 text-sm">
-      <Link href="/workspace" onClick={onNavigate} className="inline-flex min-h-11 items-center text-base" aria-label="프로젝트 아카이브로">
-        <Logo />
-      </Link>
+      <div className="flex items-center justify-between gap-2">
+        <Link href="/workspace" onClick={onNavigate} className="inline-flex min-h-11 items-center text-base" aria-label="프로젝트 아카이브로">
+          <Logo />
+        </Link>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="사이드바 접기"
+            title="사이드바 접기"
+            className="flex size-11 shrink-0 items-center justify-center rounded-control text-muted hover:bg-canvas hover:text-ink"
+          >
+            <SidebarToggleIcon />
+          </button>
+        )}
+      </div>
+
+      {/* 두 메뉴가 순서대로 쓰는 것인지 헷갈린다는 의견이 있어서, 로고 바로 아래에 짧게 안내한다 */}
+      <ol className="-mt-2 flex list-none flex-col gap-1 break-keep rounded-control bg-canvas px-3 py-2 text-xs leading-relaxed text-muted">
+        <li className="flex gap-1.5">
+          <span aria-hidden>①</span>
+          <span>
+            <strong className="font-semibold text-ink">프로젝트 아카이브</strong>에서 경험을 정리하고,
+          </span>
+        </li>
+        <li className="flex gap-1.5">
+          <span aria-hidden>②</span>
+          <span>
+            <strong className="font-semibold text-ink">포트폴리오 만들기</strong>에서 정리한 프로젝트로 포트폴리오를 만들어요.
+          </span>
+        </li>
+      </ol>
 
       <div>
         {/* 제목을 눌러도 프로젝트 아카이브 화면으로 간다 */}
-        <Link
+        <SectionLink
           href="/workspace"
-          onClick={onNavigate}
-          aria-current={pathname === "/workspace" ? "page" : undefined}
-          className={`mb-1 flex min-h-11 items-center rounded-control px-2 font-medium hover:bg-canvas hover:text-ink ${pathname === "/workspace" ? "bg-accent-soft text-accent" : "text-muted"}`}
-        >
-          프로젝트 아카이브
-        </Link>
-        <ul className="flex flex-col gap-1">
+          step={1}
+          label="프로젝트 아카이브"
+          active={inArchive}
+          open={archiveOpen}
+          controls="sidebar-archive"
+          onNavigate={onNavigate}
+          onToggle={() => inArchive && setManual((m) => ({ ...m, archive: !archiveOpen }))}
+        />
+        <ul id="sidebar-archive" className={`flex-col gap-1 ${archiveOpen ? "flex" : "hidden"}`}>
           {groups.map((g) => {
             const items = projects.filter((p) => (g.id === "unsorted" ? p.folder_id === null : p.folder_id === g.id));
             const isClosed = collapsed[g.id];
@@ -81,24 +182,27 @@ function Sidebar({ onNavigate, account }: { onNavigate?: () => void; account?: R
 
       <div className="flex flex-col gap-1 text-muted">
         {/* 제목을 눌러도 포트폴리오 화면으로 간다 */}
-        <Link
+        <SectionLink
           href="/portfolios"
-          onClick={onNavigate}
-          className="mb-1 flex min-h-11 items-center rounded-control px-2 font-medium text-ink hover:bg-canvas"
-        >
-          포트폴리오 만들기
-        </Link>
-        <Link
-          href="/portfolios"
-          onClick={onNavigate}
-          aria-current={pathname.startsWith("/portfolios") ? "page" : undefined}
-          className={`flex min-h-11 items-center justify-between rounded-control px-2 ${
-            pathname.startsWith("/portfolios") ? "bg-accent-soft font-medium text-accent" : "hover:bg-canvas"
-          }`}
-        >
-          <span>내 포트폴리오</span>
-          <span className="text-xs text-muted">{portfolios.length}</span>
-        </Link>
+          step={2}
+          label="포트폴리오 만들기"
+          active={inPortfolio}
+          open={portfolioOpen}
+          controls="sidebar-portfolio"
+          onNavigate={onNavigate}
+          onToggle={() => inPortfolio && setManual((m) => ({ ...m, portfolio: !portfolioOpen }))}
+        />
+        <div id="sidebar-portfolio" hidden={!portfolioOpen}>
+          <Link
+            href="/portfolios"
+            onClick={onNavigate}
+            aria-current={inPortfolio ? "page" : undefined}
+            className={`flex min-h-11 items-center justify-between rounded-control px-2 ${inPortfolio ? "bg-accent-soft font-medium text-accent" : "hover:bg-canvas"}`}
+          >
+            <span>내 포트폴리오</span>
+            <span className="text-xs text-muted">{portfolios.length}</span>
+          </Link>
+        </div>
         <Link
           href="/workspace/trash"
           onClick={onNavigate}
@@ -109,6 +213,14 @@ function Sidebar({ onNavigate, account }: { onNavigate?: () => void; account?: R
         >
           <span>휴지통</span>
           <span className="text-xs text-muted">30일 보관</span>
+        </Link>
+        <Link
+          href="/mypage"
+          onClick={onNavigate}
+          aria-current={pathname === "/mypage" ? "page" : undefined}
+          className={`flex min-h-11 items-center rounded-control px-2 ${pathname === "/mypage" ? "bg-accent-soft font-medium text-accent" : "hover:bg-canvas"}`}
+        >
+          마이페이지
         </Link>
         <Link
           href="/settings"
@@ -127,18 +239,52 @@ function Sidebar({ onNavigate, account }: { onNavigate?: () => void; account?: R
 
 export function WorkspaceShell({ children, account }: { children: React.ReactNode; account?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // 1,280px 이상에서 사이드바를 접어 작성 공간을 넓힌다. 선택은 이 브라우저에 기억한다(없어도 동작).
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 서버 렌더와 맞추려고 처음엔 펼친 채로 그린 뒤, 기억해 둔 값을 읽어 반영한다
+      if (localStorage.getItem("sidebar-open") === "0") setSidebarOpen(false);
+    } catch {
+      // 저장소를 못 쓰면 기본값(펼침)을 쓴다
+    }
+  }, []);
+
+  const changeSidebar = (value: boolean) => {
+    setSidebarOpen(value);
+    try {
+      localStorage.setItem("sidebar-open", value ? "1" : "0");
+    } catch {
+      // 기억하지 못해도 이번 화면에서는 바뀐다
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-1 print:block print:min-h-0">
       <a href="#content" className="skip-link print:hidden">
         본문으로 건너뛰기
       </a>
-      {/* 1,280px 이상: 고정 사이드바 240px */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-line bg-panel xl:block print:!hidden">
-        <Suspense fallback={null}>
-          <Sidebar account={account} />
-        </Suspense>
-      </aside>
+      {/* 1,280px 이상: 고정 사이드바 240px. 접으면 왼쪽 위에 펼치기 버튼만 남는다 */}
+      {sidebarOpen ? (
+        <aside id="app-sidebar" className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-line bg-panel xl:block print:!hidden">
+          <Suspense fallback={null}>
+            <Sidebar account={account} onClose={() => changeSidebar(false)} />
+          </Suspense>
+        </aside>
+      ) : (
+        <button
+          type="button"
+          onClick={() => changeSidebar(true)}
+          aria-label="사이드바 펼치기"
+          aria-controls="app-sidebar"
+          aria-expanded={false}
+          title="사이드바 펼치기"
+          className="fixed left-3 top-3 z-30 hidden size-11 items-center justify-center rounded-control border border-line bg-panel text-muted shadow-sm hover:text-ink xl:flex print:!hidden"
+        >
+          <SidebarToggleIcon />
+        </button>
+      )}
 
       {/* 1,280px 미만: 서랍형 탐색 */}
       {open && (
@@ -157,7 +303,7 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${sidebarOpen ? "" : "xl:pl-16"}`}>
         <header className="flex h-14 items-center gap-3 border-b border-line bg-panel px-4 xl:hidden print:hidden">
           <button
             type="button"

@@ -301,9 +301,9 @@ export function ProjectPagePreview({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-bold">포트폴리오 미리보기 · 프로젝트 {layout.title}</h2>
-        <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="break-keep text-base font-bold">포트폴리오 미리보기 · 프로젝트 {layout.title}</h2>
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-sm">
           <button
             type="button"
             disabled={pageIndex === 0}

@@ -16,10 +16,13 @@ export const PORTFOLIO_LIMITS = {
   profileIntro: 600,
   education: 10,
   careers: 10,
+  certificates: 10,
   tools: 20,
   org: 80,
   course: 80,
   role: 80,
+  certName: 80,
+  issuer: 80,
   period: 40,
   detail: 300,
   toolName: 40,
@@ -84,6 +87,14 @@ const careerItem = z.object({
   description: z.string().max(L.detail).default(""),
 });
 
+// 자격증: 이름·발급 기관·취득일만 받는다. 점수·등급 같은 항목은 두지 않는다.
+const certificateItem = z.object({
+  id: z.string().min(1).max(64),
+  name: z.string().max(L.certName).default(""),
+  issuer: z.string().max(L.issuer).default(""),
+  date: z.string().max(L.period).default(""),
+});
+
 // 도구에는 숙련도 퍼센트 같은 임의의 점수를 두지 않는다 (spec 8.3)
 const toolItem = z.object({
   id: z.string().min(1).max(64),
@@ -95,6 +106,7 @@ export const profileSchema = z.object({
   intro: z.string().max(L.profileIntro).default(""),
   education: z.array(educationItem).max(L.education).default([]),
   careers: z.array(careerItem).max(L.careers).default([]),
+  certificates: z.array(certificateItem).max(L.certificates).default([]),
   tools: z.array(toolItem).max(L.tools).default([]),
 });
 
@@ -104,6 +116,7 @@ export type SummaryItem = z.infer<typeof summaryItemSchema>;
 export type Profile = z.infer<typeof profileSchema>;
 export type EducationItem = z.infer<typeof educationItem>;
 export type CareerItem = z.infer<typeof careerItem>;
+export type CertificateItem = z.infer<typeof certificateItem>;
 export type ToolItem = z.infer<typeof toolItem>;
 
 export const emptyCover = (): Cover => coverSchema.parse({});

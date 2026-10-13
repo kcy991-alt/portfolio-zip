@@ -6,6 +6,7 @@ import { api } from "@/lib/api/client";
 import { leaving } from "@/lib/auth/google";
 import { createLocalPortfolio, type PortfolioDoc } from "@/lib/portfolio/model";
 import type { TrashItem } from "@/lib/trash";
+import { emptyProfile, type Profile } from "@/lib/validation/portfolio";
 import { emptyProjectAnswers, overviewSchema, type ProjectAnswers } from "@/lib/validation/project-answers";
 
 export type FolderItem = { id: string; name: string };
@@ -64,6 +65,11 @@ type Ctx = {
   updateLocalProject: (id: string, patch: LocalPatch) => void;
   getLocalPortfolio: (id: string) => PortfolioDoc | undefined;
   updateLocalPortfolio: (id: string, update: (doc: PortfolioDoc) => PortfolioDoc) => void;
+  /** 체험 중 마이페이지 프로필(브라우저 메모리에만 있다) */
+  localMyProfile: Profile;
+  setLocalMyProfile: (profile: Profile) => void;
+  /** 포트폴리오에서 "마이페이지에서 불러오기"를 누를 때 쓴다. 로그인했으면 서버의 저장본, 체험 중이면 메모리의 내용이다. */
+  fetchMyProfile: () => Promise<Profile>;
 };
 
 const never = async () => {
@@ -93,6 +99,9 @@ const WorkspaceDataContext = createContext<Ctx>({
   updateLocalProject: () => {},
   getLocalPortfolio: () => undefined,
   updateLocalPortfolio: () => {},
+  localMyProfile: emptyProfile(),
+  setLocalMyProfile: () => {},
+  fetchMyProfile: async () => emptyProfile(),
 });
 
 export function useWorkspace() {
@@ -127,6 +136,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
   const [localProjects, setLocalProjects] = useState<LocalProject[]>([]);
   const [localPortfolios, setLocalPortfolios] = useState<LocalPortfolio[]>([]);
   const [localTrash, setLocalTrash] = useState<LocalTrashEntry[]>([]);
+  const [localMyProfile, setLocalMyProfile] = useState<Profile>(emptyProfile);
 
   const load = useCallback(async () => {
     try {
@@ -158,7 +168,12 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
   const mode: Ctx["mode"] = status === "loading" ? "loading" : status === "guest" ? "local" : loaded ? "real" : "loading";
 
   // 체험 중에 만든 내용이 있는데 창을 닫거나 새로고침하려 하면 사라진다고 경고한다 (로그인하러 가는 경우는 제외)
-  const hasLocalContent = localFolders.length > 0 || localProjects.length > 0 || localPortfolios.length > 0 || localTrash.length > 0;
+  const hasLocalContent =
+    localFolders.length > 0 ||
+    localProjects.length > 0 ||
+    localPortfolios.length > 0 ||
+    localTrash.length > 0 ||
+    JSON.stringify(localMyProfile) !== JSON.stringify(emptyProfile());
   useEffect(() => {
     if (mode !== "local" || !hasLocalContent) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -287,6 +302,9 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
         updateLocalPortfolio: (id, update) => {
           setLocalPortfolios((list) => list.map((p) => (p.doc.id === id ? { doc: update(p.doc), updated_at: now() } : p)));
         },
+        localMyProfile,
+        setLocalMyProfile,
+        fetchMyProfile: async () => localMyProfile,
       };
     }
 
@@ -349,8 +367,11 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
       updateLocalProject: () => {},
       getLocalPortfolio: () => undefined,
       updateLocalPortfolio: () => {},
+      localMyProfile,
+      setLocalMyProfile,
+      fetchMyProfile: async () => (await api<{ profile: Profile }>("/api/me/profile")).profile,
     };
-  }, [mode, folders, projects, portfolios, trash, error, load, loadTrash, localFolders, localProjects, localPortfolios, localTrash]);
+  }, [mode, folders, projects, portfolios, trash, error, load, loadTrash, localFolders, localProjects, localPortfolios, localTrash, localMyProfile]);
 
   return <WorkspaceDataContext.Provider value={value}>{children}</WorkspaceDataContext.Provider>;
 }

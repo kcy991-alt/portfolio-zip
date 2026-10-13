@@ -12,6 +12,7 @@ import { Modal } from "./modal";
 import { ProjectCopyPanel } from "./portfolio-copy-panel";
 import { CoverForm, ProfileForm, SummaryForm } from "./portfolio-forms";
 import { PortfolioPageView } from "./portfolio-views";
+import { ProfileImport } from "./profile-import";
 import { useWorkspace } from "./workspace-data";
 
 const STATUS_TEXT = {
@@ -148,7 +149,10 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
   ) : selected.type === "summary" ? (
     <SummaryForm summary={doc.summary} projects={copies} onChange={api.setSummary} />
   ) : selected.type === "profile" ? (
-    <ProfileForm profile={doc.profile} onChange={api.setProfile} />
+    <div className="flex flex-col gap-4">
+      <ProfileImport current={doc.profile} onApply={api.setProfile} />
+      <ProfileForm profile={doc.profile} onChange={api.setProfile} />
+    </div>
   ) : selectedCopy ? (
     <ProjectCopyPanel key={selectedCopy.id} api={api} copy={selectedCopy} page={selected} onSelectSection={selectSectionPage} />
   ) : null;

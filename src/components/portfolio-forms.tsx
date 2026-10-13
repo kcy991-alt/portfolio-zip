@@ -5,6 +5,7 @@ import type { PortfolioDoc } from "@/lib/portfolio/model";
 import {
   PORTFOLIO_LIMITS as L,
   type CareerItem,
+  type CertificateItem,
   type Cover,
   type EducationItem,
   type Profile,
@@ -166,7 +167,7 @@ export function SummaryForm({ summary, projects, onChange }: { summary: Summary;
   );
 }
 
-// ---- 프로필 (spec 8.3: 소개 600자, 교육·경력 각 10개, 도구 20개) ----
+// ---- 프로필 (spec 8.3: 소개 600자, 교육·경력·자격증 각 10개, 도구 20개) ----
 
 export function ProfileForm({ profile, onChange }: { profile: Profile; onChange: (p: Profile) => void }) {
   const set = (patch: Partial<Profile>) => onChange({ ...profile, ...patch });
@@ -222,6 +223,29 @@ export function ProfileForm({ profile, onChange }: { profile: Profile; onChange:
         {profile.careers.length < L.careers && (
           <button type="button" onClick={() => set({ careers: [...profile.careers, { id: newId(), org: "", role: "", period: "", description: "" }] })} className={addButton}>
             + 경력 추가
+          </button>
+        )}
+      </div>
+
+      <div className={`${card} flex flex-col gap-3`}>
+        <h3 className="font-bold">
+          자격증 <span className="text-sm font-normal text-muted">({profile.certificates.length}/{L.certificates})</span>
+        </h3>
+        {profile.certificates.map((c, i) => {
+          const setC = (patch: Partial<CertificateItem>) => set({ certificates: profile.certificates.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
+          return (
+            <fieldset key={c.id} className="flex flex-col gap-3 rounded-control border border-line p-3">
+              <legend className="px-1 text-sm font-medium">자격증 {i + 1}</legend>
+              <TextField label="자격증 이름" value={c.name} maxLength={L.certName} onChange={(name) => setC({ name })} placeholder="예: 정보처리기사" />
+              <TextField label="발급 기관 (선택)" value={c.issuer} maxLength={L.issuer} onChange={(issuer) => setC({ issuer })} />
+              <TextField label="취득일 (선택)" value={c.date} maxLength={L.period} onChange={(date) => setC({ date })} placeholder="예: 2025.06" />
+              <MoveButtons index={i} count={profile.certificates.length} label={`자격증 ${i + 1}`} onMove={(d) => set({ certificates: move(profile.certificates, i, d) })} onRemove={() => set({ certificates: profile.certificates.filter((_, k) => k !== i) })} />
+            </fieldset>
+          );
+        })}
+        {profile.certificates.length < L.certificates && (
+          <button type="button" onClick={() => set({ certificates: [...profile.certificates, { id: newId(), name: "", issuer: "", date: "" }] })} className={addButton}>
+            + 자격증 추가
           </button>
         )}
       </div>

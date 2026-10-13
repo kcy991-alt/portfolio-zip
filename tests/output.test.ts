@@ -132,10 +132,31 @@ describe("buildLogicalPages: 무엇을 출력하는가", () => {
   });
 
   it("프로필은 비어 있는 영역을 숨기고 도구에 점수를 붙이지 않는다", () => {
-    const doc = build((d) => ({ ...d, profile: { intro: "", education: [], careers: [], tools: [{ id: "t1", name: "Figma", description: "" }] } }));
+    const doc = build((d) => ({ ...d, profile: { intro: "", education: [], careers: [], certificates: [], tools: [{ id: "t1", name: "Figma", description: "" }] } }));
     const profile = logical(doc).find((p) => p.type === "profile")!;
     expect(profile.atoms.filter((x) => x.kind === "zoneTitle").map((x) => (x as { text: string }).text)).toEqual(["도구"]);
     expect(JSON.stringify(profile.atoms)).not.toMatch(/%|숙련/);
+  });
+
+  it("자격증은 이름이 있는 것만 취득일·이름·발급 기관으로 나온다", () => {
+    const doc = build((d) => ({
+      ...d,
+      profile: {
+        intro: "",
+        education: [],
+        careers: [],
+        certificates: [
+          { id: "k1", name: "정보처리기사", issuer: "한국산업인력공단", date: "2025.06" },
+          { id: "k2", name: "  ", issuer: "이름 없는 자격증", date: "" },
+        ],
+        tools: [],
+      },
+    }));
+    const profile = logical(doc).find((p) => p.type === "profile")!;
+    expect(profile.atoms.filter((x) => x.kind === "zoneTitle").map((x) => (x as { text: string }).text)).toEqual(["자격증"]);
+    const bullets = profile.atoms.filter((x) => x.kind === "bullet") as { label?: string; text: string }[];
+    expect(bullets).toHaveLength(1);
+    expect(bullets[0]).toMatchObject({ label: "2025.06", text: "정보처리기사 · 한국산업인력공단" });
   });
 });
 

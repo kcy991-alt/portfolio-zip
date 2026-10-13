@@ -91,6 +91,7 @@ export function createSamplePortfolio(): PortfolioDoc {
       intro: "신규 사용자의 첫 경험 개선 중심의 서비스 기획",
       education: [{ id: "e1", org: "○○대학교", course: "경영학", period: "2019 ~ 2025", description: "" }],
       careers: [{ id: "c1", org: "○○ 서비스", role: "서비스 기획 인턴", period: "2025.07 ~ 2025.12", description: "신규 기능 기획 지원, 사용자 인터뷰" }],
+      certificates: [{ id: "k1", name: "○○ 자격증", issuer: "○○ 기관", date: "2025.06" }],
       tools: [
         { id: "t1", name: "Figma", description: "화면 설계" },
         { id: "t2", name: "SQL", description: "사용 데이터 확인" },
