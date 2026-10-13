@@ -93,6 +93,28 @@ export function CoverForm({ cover, onChange, onActiveZone }: { cover: Cover; onC
   );
 }
 
+// ---- 마이페이지의 기본 정보 (이름·이메일·링크) ----
+
+type BasicInfo = { name: string; email: string; link: string };
+
+/** 마이페이지에서 한 번만 적어 두고 포트폴리오 표지에서 불러오는 기본 정보. 지원 직무는 지원처마다 달라서 표지에서 적는다. */
+export function BasicInfoForm<T extends BasicInfo>({ value, onChange }: { value: T; onChange: (v: T) => void }) {
+  const set = (patch: Partial<BasicInfo>) => onChange({ ...value, ...patch });
+  const emailError = value.email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email) ? "이메일 주소 형식을 확인해 주세요." : undefined;
+  const linkError = value.link !== "" && !/^https?:\/\//i.test(value.link) ? "http 또는 https 주소만 입력할 수 있어요." : undefined;
+  return (
+    <div className={`${card} flex flex-col gap-4`}>
+      <div>
+        <h3 className="text-lg font-bold">기본 정보</h3>
+        <p className="mt-1 text-sm text-muted">포트폴리오 표지에서 불러올 수 있어요. 연락처는 표지에서 &lsquo;출력에 포함&rsquo;을 켠 포트폴리오에만 나와요.</p>
+      </div>
+      <TextField label="이름" value={value.name} maxLength={L.name} onChange={(name) => set({ name })} />
+      <TextField label="이메일 (선택)" value={value.email} maxLength={L.email} onChange={(email) => set({ email })} error={emailError} />
+      <TextField label="링크 (선택)" value={value.link} maxLength={L.url} onChange={(link) => set({ link })} error={linkError} placeholder="https://" />
+    </div>
+  );
+}
+
 // ---- 반복 목록 (Summary·교육·경력·도구에서 공통으로 쓴다) ----
 
 function MoveButtons({ index, count, onMove, onRemove, label }: { index: number; count: number; onMove: (d: -1 | 1) => void; onRemove: () => void; label: string }) {

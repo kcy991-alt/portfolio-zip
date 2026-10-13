@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SaveStatusChip } from "@/components/app-motion";
 import { useAuth } from "@/components/auth-context";
 import { GatedButton } from "@/components/gated-button";
-import { ProfileForm } from "@/components/portfolio-forms";
+import { BasicInfoForm, ProfileForm } from "@/components/portfolio-forms";
 import { useWorkspace } from "@/components/workspace-data";
 import { api, ApiError } from "@/lib/api/client";
 import { Autosaver, type SaveResult, type SaveStatus } from "@/lib/autosave";
-import type { Profile } from "@/lib/validation/portfolio";
+import type { MyProfile } from "@/lib/validation/portfolio";
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
   idle: "자동 저장됨",
@@ -20,21 +20,21 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
 };
 
 const intro = (
-  <p className="text-sm text-muted">
-    소개·교육·경력·자격증·도구를 여기에 한 번만 적어 두면, 포트폴리오의 프로필에서 <strong className="text-ink">&lsquo;마이페이지에서 불러오기&rsquo;</strong>로 바로 넣을 수 있어요. 이름·지원 직무·연락처는 포트폴리오마다 달라서 표지에서 따로 적어요.
+  <p className="break-keep text-pretty text-sm leading-relaxed text-muted">
+    이름·연락처와 소개·교육·경력·자격증·도구를 여기에 한 번만 적어 두면, 포트폴리오에서 <strong className="whitespace-nowrap text-ink">&lsquo;마이페이지에서 불러오기&rsquo;</strong>로 바로 넣을 수 있어요. 지원 직무는 포트폴리오마다 달라서 표지에서 따로 적어요.
   </p>
 );
 
 /** 로그인한 사용자: 서버에 자동 저장한다 */
 function RealMyPage() {
-  const [loaded, setLoaded] = useState<{ profile: Profile; revision: number } | null>(null);
+  const [loaded, setLoaded] = useState<{ profile: MyProfile; revision: number } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [round, setRound] = useState(0); // 최신 버전을 다시 열 때 올린다
 
   const load = useCallback(async () => {
     setLoadError(null);
     try {
-      setLoaded(await api<{ profile: Profile; revision: number }>("/api/me/profile"));
+      setLoaded(await api<{ profile: MyProfile; revision: number }>("/api/me/profile"));
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "불러오지 못했어요.");
     }
@@ -68,14 +68,14 @@ function RealMyPage() {
   );
 }
 
-function RealEditor({ initial, onReload }: { initial: { profile: Profile; revision: number }; onReload: () => void }) {
-  const [profile, setProfile] = useState<Profile>(initial.profile);
+function RealEditor({ initial, onReload }: { initial: { profile: MyProfile; revision: number }; onReload: () => void }) {
+  const [profile, setProfile] = useState<MyProfile>(initial.profile);
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [message, setMessage] = useState<string | null>(null);
-  const saver = useRef<Autosaver<Profile> | null>(null);
+  const saver = useRef<Autosaver<MyProfile> | null>(null);
 
   useEffect(() => {
-    const instance = new Autosaver<Profile>({
+    const instance = new Autosaver<MyProfile>({
       initialRevision: initial.revision,
       onStatus: setStatus,
       save: async (payload, expectedRevision): Promise<SaveResult> => {
@@ -102,7 +102,7 @@ function RealEditor({ initial, onReload }: { initial: { profile: Profile; revisi
     };
   }, [initial.revision]);
 
-  const change = (next: Profile) => {
+  const change = (next: MyProfile) => {
     setProfile(next);
     saver.current?.change(next);
   };
@@ -143,7 +143,8 @@ function RealEditor({ initial, onReload }: { initial: { profile: Profile; revisi
           </button>
         </div>
       )}
-      <ProfileForm profile={profile} onChange={change} />
+      <BasicInfoForm value={profile} onChange={change} />
+      <ProfileForm profile={profile} onChange={(p) => change({ ...profile, ...p })} />
     </div>
   );
 }
@@ -164,7 +165,8 @@ function LocalMyPage() {
           disabledClassName="min-h-11 cursor-not-allowed rounded-control bg-line px-4 text-muted"
         />
       </div>
-      <ProfileForm profile={localMyProfile} onChange={setLocalMyProfile} />
+      <BasicInfoForm value={localMyProfile} onChange={setLocalMyProfile} />
+      <ProfileForm profile={localMyProfile} onChange={(p) => setLocalMyProfile({ ...localMyProfile, ...p })} />
     </div>
   );
 }

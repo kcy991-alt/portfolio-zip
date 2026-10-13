@@ -110,7 +110,21 @@ export const profileSchema = z.object({
   tools: z.array(toolItem).max(L.tools).default([]),
 });
 
+/**
+ * 마이페이지에 저장하는 내용: 프로필(소개·교육·경력·자격증·도구)과 기본 정보(이름·이메일·링크).
+ * 같은 JSON 칸(my_profile.profile)에 항목만 더했고, 예전에 저장한 값에는 새 항목이 없어도 빈 값으로 읽는다.
+ * 지원 직무는 지원처마다 달라서 여기에 두지 않고 표지에서 적는다.
+ */
+export const myProfileSchema = profileSchema.extend({
+  name: z.string().max(L.name).default(""),
+  email,
+  link: httpUrl,
+});
+
 export type Cover = z.infer<typeof coverSchema>;
+export type MyProfile = z.infer<typeof myProfileSchema>;
+/** 표지에서 마이페이지로부터 불러올 수 있는 항목 */
+export type CoverBasics = Pick<Cover, "name" | "email" | "link">;
 export type Summary = z.infer<typeof summarySchema>;
 export type SummaryItem = z.infer<typeof summaryItemSchema>;
 export type Profile = z.infer<typeof profileSchema>;
@@ -122,6 +136,7 @@ export type ToolItem = z.infer<typeof toolItem>;
 export const emptyCover = (): Cover => coverSchema.parse({});
 export const emptySummary = (): Summary => summarySchema.parse({});
 export const emptyProfile = (): Profile => profileSchema.parse({});
+export const emptyMyProfile = (): MyProfile => myProfileSchema.parse({});
 
 /** 제작본 안의 프로젝트 사본 내용. 원본과 같은 모양이다(spec 5.3). */
 export const snapshotSchema = z.object({

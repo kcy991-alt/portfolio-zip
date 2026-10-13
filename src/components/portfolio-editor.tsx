@@ -13,7 +13,7 @@ import { ProjectCopyPanel } from "./portfolio-copy-panel";
 import { CoverForm, ProfileForm, SummaryForm } from "./portfolio-forms";
 import { OutputPages } from "./output-pages";
 import { usePagination } from "./portfolio-output";
-import { ProfileImport } from "./profile-import";
+import { CoverImport, ProfileImport } from "./profile-import";
 import { useWorkspace } from "./workspace-data";
 
 const STATUS_TEXT = {
@@ -154,7 +154,10 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
   };
 
   const panel = !selected ? null : selected.type === "cover" ? (
-    <CoverForm cover={doc.cover} onChange={api.setCover} onActiveZone={markZone} />
+    <div className="flex flex-col gap-4">
+      <CoverImport cover={doc.cover} onApply={api.setCover} />
+      <CoverForm cover={doc.cover} onChange={api.setCover} onActiveZone={markZone} />
+    </div>
   ) : selected.type === "summary" ? (
     <SummaryForm summary={doc.summary} projects={copies} onChange={api.setSummary} onActiveZone={markZone} />
   ) : selected.type === "profile" ? (

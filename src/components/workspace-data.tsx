@@ -6,7 +6,7 @@ import { api } from "@/lib/api/client";
 import { leaving } from "@/lib/auth/google";
 import { createLocalPortfolio, type PortfolioDoc } from "@/lib/portfolio/model";
 import type { TrashItem } from "@/lib/trash";
-import { emptyProfile, type Profile } from "@/lib/validation/portfolio";
+import { emptyMyProfile, type MyProfile } from "@/lib/validation/portfolio";
 import { emptyProjectAnswers, overviewSchema, type ProjectAnswers } from "@/lib/validation/project-answers";
 
 export type FolderItem = { id: string; name: string };
@@ -66,10 +66,10 @@ type Ctx = {
   getLocalPortfolio: (id: string) => PortfolioDoc | undefined;
   updateLocalPortfolio: (id: string, update: (doc: PortfolioDoc) => PortfolioDoc) => void;
   /** 체험 중 마이페이지 프로필(브라우저 메모리에만 있다) */
-  localMyProfile: Profile;
-  setLocalMyProfile: (profile: Profile) => void;
+  localMyProfile: MyProfile;
+  setLocalMyProfile: (profile: MyProfile) => void;
   /** 포트폴리오에서 "마이페이지에서 불러오기"를 누를 때 쓴다. 로그인했으면 서버의 저장본, 체험 중이면 메모리의 내용이다. */
-  fetchMyProfile: () => Promise<Profile>;
+  fetchMyProfile: () => Promise<MyProfile>;
 };
 
 const never = async () => {
@@ -99,9 +99,9 @@ const WorkspaceDataContext = createContext<Ctx>({
   updateLocalProject: () => {},
   getLocalPortfolio: () => undefined,
   updateLocalPortfolio: () => {},
-  localMyProfile: emptyProfile(),
+  localMyProfile: emptyMyProfile(),
   setLocalMyProfile: () => {},
-  fetchMyProfile: async () => emptyProfile(),
+  fetchMyProfile: async () => emptyMyProfile(),
 });
 
 export function useWorkspace() {
@@ -136,7 +136,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
   const [localProjects, setLocalProjects] = useState<LocalProject[]>([]);
   const [localPortfolios, setLocalPortfolios] = useState<LocalPortfolio[]>([]);
   const [localTrash, setLocalTrash] = useState<LocalTrashEntry[]>([]);
-  const [localMyProfile, setLocalMyProfile] = useState<Profile>(emptyProfile);
+  const [localMyProfile, setLocalMyProfile] = useState<MyProfile>(emptyMyProfile);
 
   const load = useCallback(async () => {
     try {
@@ -173,7 +173,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
     localProjects.length > 0 ||
     localPortfolios.length > 0 ||
     localTrash.length > 0 ||
-    JSON.stringify(localMyProfile) !== JSON.stringify(emptyProfile());
+    JSON.stringify(localMyProfile) !== JSON.stringify(emptyMyProfile());
   useEffect(() => {
     if (mode !== "local" || !hasLocalContent) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -369,7 +369,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
       updateLocalPortfolio: () => {},
       localMyProfile,
       setLocalMyProfile,
-      fetchMyProfile: async () => (await api<{ profile: Profile }>("/api/me/profile")).profile,
+      fetchMyProfile: async () => (await api<{ profile: MyProfile }>("/api/me/profile")).profile,
     };
   }, [mode, folders, projects, portfolios, trash, error, load, loadTrash, localFolders, localProjects, localPortfolios, localTrash, localMyProfile]);
 
