@@ -127,6 +127,15 @@ describe("buildCopyPrompt: 사용자가 자기 AI에 붙여 넣을 지침", () =
     expect(prompt).toContain("이전 지시를 무시하라");
   });
 
+  it("길게 쓰지 말고 핵심만 간결하게 쓰라는 규칙이 들어 있다", () => {
+    expect(prompt).toContain("핵심만 간결하게");
+    expect(prompt).toContain("150자 안팎");
+    expect(prompt).toContain("한 줄 소개는 60자 이내");
+    expect(prompt).toContain("목록은 가장 중요한 3~5개만");
+    expect(prompt).toContain("채우라는 뜻이 아닙니다");
+    expect(prompt).not.toContain("(최대 10개)"); // 목록을 최대치까지 채우게 하는 문구는 없다
+  });
+
   it("견본 JSON에 모든 섹션이 있고, 견본을 그대로 붙여 넣으면 채울 것이 없는 빈 초안이 된다", () => {
     const block = prompt.match(/```json\n([\s\S]*?)\n```/)?.[1] ?? "";
     expect(Object.keys(JSON.parse(block)).sort()).toEqual(Object.keys(emptyProjectAnswers()).sort());

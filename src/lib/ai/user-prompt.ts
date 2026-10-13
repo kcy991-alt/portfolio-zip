@@ -8,11 +8,11 @@ const GUIDE = `각 칸의 뜻:
 - overview: 프로젝트 개요. startMonth·endMonth는 "YYYY-MM" 형식이고 문서에 연·월이 분명할 때만 쓰며 아니면 null. ongoing은 진행 중이라고 분명히 밝힌 경우만 true.
   projectType은 ${PROJECT_TYPES.map((v) => `"${v}"`).join(" | ")} 중 하나 또는 null (work 실제 업무, intern 인턴, education 교육·과제, personal 개인, other 기타).
 - role: 이 문서 작성자가 맡은 역할 이름(title)과 맡은 범위(responsibility).
-- contribution: 작성자가 직접 한 일(최대 10개). ownership은 ${OWNERSHIPS.map((v) => `"${v}"`).join(" | ")} 또는 null (lead 주도, joint 공동, support 지원).
+- contribution: 작성자가 직접 한 일(핵심 3~5개). ownership은 ${OWNERSHIPS.map((v) => `"${v}"`).join(" | ")} 또는 null (lead 주도, joint 공동, support 지원).
 - problem: 누구에게(targetUser) 어떤 현상이(phenomenon) 왜 중요한지(importance).
-- evidence: 문서에 나온 조사·데이터·관찰(최대 10개). kind는 인터뷰·설문 같은 종류.
+- evidence: 문서에 나온 조사·데이터·관찰(핵심 3~5개). kind는 인터뷰·설문 같은 종류.
 - insight / hypothesis / solution: 발견·해석, 가설, 선택한 해결안과 대안·이유.
-- metrics: 성공·검증 지표(최대 6개). purpose는 ${METRIC_PURPOSES.map((v) => `"${v}"`).join(" | ")} 또는 null. baseline·target은 문서에 적힌 값만.
+- metrics: 성공·검증 지표(핵심 3~5개). purpose는 ${METRIC_PURPOSES.map((v) => `"${v}"`).join(" | ")} 또는 null. baseline·target은 문서에 적힌 값만.
 - result: status는 ${RESULT_STATUSES.map((v) => `"${v}"`).join(" | ")} 또는 null, type은 ${RESULT_TYPES.map((v) => `"${v}"`).join(" | ")} 또는 null(status가 "observed"일 때만).
 - execution: 진행 순서(steps)·협업(collaboration). status는 ${EXECUTION_STATUSES.map((v) => `"${v}"`).join(" | ")} 또는 null.
 - reflection: 배운 점·한계·다음 단계.`;
