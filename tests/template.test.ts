@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OUTPUT_ZONES, STEPS } from "@/templates/pm-v1";
-import { emptyProjectAnswers, projectAnswersSchema } from "@/lib/validation/project-answers";
+import { emptyProjectAnswers, projectAnswersSchema, SECTION_KEYS } from "@/lib/validation/project-answers";
 
 describe("pm-v1 template", () => {
   it("단계는 10개이고 순서가 1~10이다", () => {
@@ -8,7 +8,7 @@ describe("pm-v1 template", () => {
   });
 
   it("스키마의 모든 섹션이 정확히 한 번 단계에 배치되고 출력 구역을 가진다", () => {
-    const schemaKeys = Object.keys(emptyProjectAnswers()).sort();
+    const schemaKeys = [...SECTION_KEYS].sort();
     const stepKeys = STEPS.flatMap((s) => s.sections).sort();
     expect(stepKeys).toEqual(schemaKeys);
     expect(Object.keys(OUTPUT_ZONES).sort()).toEqual(schemaKeys);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { draftToAnswers, mergeDraft } from "@/lib/ai/draft-merge";
 import { blankPdfDraft as blankDraft } from "@/lib/ai/draft-schema";
 import { buildCopyPrompt, coerceDraft, parsePastedDraft } from "@/lib/ai/user-prompt";
-import { emptyProjectAnswers } from "@/lib/validation/project-answers";
+import { emptyProjectAnswers, SECTION_KEYS } from "@/lib/validation/project-answers";
 
 describe("draftToAnswers: AI 결과를 답변 규칙에 맞게 다듬는다", () => {
   it("글자 수 상한을 넘으면 자른다", () => {
@@ -138,7 +138,7 @@ describe("buildCopyPrompt: 사용자가 자기 AI에 붙여 넣을 지침", () =
 
   it("견본 JSON에 모든 섹션이 있고, 견본을 그대로 붙여 넣으면 채울 것이 없는 빈 초안이 된다", () => {
     const block = prompt.match(/```json\n([\s\S]*?)\n```/)?.[1] ?? "";
-    expect(Object.keys(JSON.parse(block)).sort()).toEqual(Object.keys(emptyProjectAnswers()).sort());
+    expect(Object.keys(JSON.parse(block)).sort()).toEqual([...SECTION_KEYS].sort());
     const parsed = parsePastedDraft(block);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) expect(mergeDraft(emptyProjectAnswers(), draftToAnswers(parsed.draft)).filledCount).toBe(0);

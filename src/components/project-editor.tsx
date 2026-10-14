@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatedMessage, SaveStatusChip } from "@/components/app-motion";
 import { api, ApiError } from "@/lib/api/client";
 import { Autosaver, type SaveResult, type SaveStatus } from "@/lib/autosave";
-import { pageOfZone, STEPS, zoneOfField, type PageType } from "@/templates/pm-v1";
+import { STEPS, visibleStepIndexes, zoneOfField } from "@/templates/pm-v1";
 import { StepProgress } from "./step-progress";
+import { StepManager, toggleStepHidden } from "./step-manager";
 import { SECTION_FORMS } from "@/templates/pm-v1/fields";
 import type { ProjectAnswers, SectionKey } from "@/lib/validation/project-answers";
 import { REPRESENTATIVE } from "@/lib/storage/asset-limits";
@@ -55,11 +56,16 @@ export function ProjectEditor(props: Props) {
   const [lastValidTitle, setLastValidTitle] = useState(base.title);
   const [answers, setAnswers] = useState<ProjectAnswers>(base.answers);
   const [recordStatus, setRecordStatus] = useState<"draft" | "done">(base.record_status);
-  const [stepIndex, setStepIndex] = useState(Math.min(Math.max(base.last_step, 1), STEPS.length) - 1);
+  // 마지막으로 보던 단계가 지금은 숨겨져 있으면 가까운 보이는 단계에서 시작한다
+  const [stepIndex, setStepIndex] = useState(() => {
+    const saved = Math.min(Math.max(base.last_step, 1), STEPS.length) - 1;
+    const visible = visibleStepIndexes(base.answers);
+    return visible.find((i) => i >= saved) ?? visible[visible.length - 1];
+  });
+  const [managing, setManaging] = useState(false);
   // 지금 입력 중인 항목이 포트폴리오 페이지의 어느 구역에 들어가는지 (미리보기에서 그 구역만 강조한다)
   const firstZone = (index: number) => zoneOfField(STEPS[index].sections[0], firstFieldName(STEPS[index].sections[0]));
   const [activeZone, setActiveZone] = useState<string>(firstZone(stepIndex));
-  const [page, setPage] = useState<PageType>(pageOfZone(firstZone(stepIndex)));
   const [tab, setTab] = useState<"write" | "preview">("write");
   // 넓은 화면에서 미리보기를 접으면 입력 영역이 넓어진다. 입력 중인 내용과 현재 단계는 그대로다.
   const [previewOpen, setPreviewOpen] = useState(true);
@@ -80,6 +86,11 @@ export function ProjectEditor(props: Props) {
   const saver = useRef<Autosaver<Payload> | null>(null);
 
   const step = STEPS[stepIndex];
+  // 숨긴 단계는 건너뛴다. 이전·다음은 보이는 단계 안에서 움직인다.
+  const visible = visibleStepIndexes(answers);
+  const position = Math.max(visible.indexOf(stepIndex), 0);
+  const prevIndex: number | undefined = visible[position - 1];
+  const nextIndex: number | undefined = visible[position + 1];
   const trimmedTitle = titleInput.trim();
   // 미리보기에는 마지막으로 유효했던 제목을 쓴다(비어 있으면 이전 제목 유지)
   const title = trimmedTitle === "" ? lastValidTitle : trimmedTitle;
@@ -150,14 +161,19 @@ export function ProjectEditor(props: Props) {
   const goToStep = (index: number) => {
     setStepIndex(index);
     setActiveZone(firstZone(index));
-    setPage(pageOfZone(firstZone(index)));
     commit({ last_step: index + 1 });
     void saver.current?.flush(); // 단계를 옮길 때 저장을 시도한다 (체험 중에는 저장하지 않으므로 아무 일도 없다)
   };
 
-  const showZone = (zone: string) => {
-    setActiveZone(zone);
-    setPage(pageOfZone(zone));
+  const showZone = (zone: string) => setActiveZone(zone);
+
+  // 단계를 넣거나 뺀다. 지금 보고 있는 단계를 빼면 가까운 보이는 단계로 옮긴다. 쓴 내용은 지우지 않는다.
+  const onToggleStep = (key: string) => {
+    const next = toggleStepHidden(answers, key);
+    if (next === answers) return;
+    onAnswersChange(next);
+    const nowVisible = visibleStepIndexes(next);
+    if (!nowVisible.includes(stepIndex)) goToStep(nowVisible.find((i) => i > stepIndex) ?? nowVisible[nowVisible.length - 1]);
   };
   // 섹션 안의 버튼 같은 곳에 포커스가 가면 그 섹션의 첫 구역을, 입력 항목에 가면 그 항목의 구역을 강조한다
   const focusSection = (s: SectionKey) => showZone(zoneOfField(s, ""));
@@ -183,8 +199,8 @@ export function ProjectEditor(props: Props) {
           <div className="flex shrink-0 items-center">
             {(
               [
-                { label: "이전 단계로", title: "이전 단계", to: stepIndex - 1, disabled: stepIndex === 0, path: "M19 12H5M11 6l-6 6 6 6" },
-                { label: "다음 단계로", title: "다음 단계", to: stepIndex + 1, disabled: stepIndex === STEPS.length - 1, path: "M5 12h14M13 6l6 6-6 6" },
+                { label: "이전 단계로", title: "이전 단계", to: prevIndex ?? stepIndex, disabled: prevIndex === undefined, path: "M19 12H5M11 6l-6 6 6 6" },
+                { label: "다음 단계로", title: "다음 단계", to: nextIndex ?? stepIndex, disabled: nextIndex === undefined, path: "M5 12h14M13 6l6 6-6 6" },
               ] as const
             ).map((b) => (
               <button
@@ -235,16 +251,16 @@ export function ProjectEditor(props: Props) {
       <div className="sticky bottom-0 -mx-4 flex items-center justify-between gap-2 border-t border-line bg-panel px-4 py-3 xl:static xl:mx-0 xl:border-0 xl:bg-transparent xl:p-0">
         <button
           type="button"
-          disabled={stepIndex === 0}
-          onClick={() => goToStep(stepIndex - 1)}
+          disabled={prevIndex === undefined}
+          onClick={() => prevIndex !== undefined && goToStep(prevIndex)}
           className="min-h-12 rounded-control border border-line bg-panel px-4 hover:bg-canvas disabled:text-muted xl:min-h-11"
         >
           이전 단계
         </button>
         <span className="text-sm text-muted xl:hidden">
-          {step.order} / {STEPS.length}
+          {position + 1} / {visible.length}
         </span>
-        {stepIndex === STEPS.length - 1 ? (
+        {nextIndex === undefined ? (
           // 마지막 단계에서는 다음 단계가 없으므로, 기록한 프로젝트로 포트폴리오를 만들러 간다
           <Link href="/portfolios" className="inline-flex min-h-12 items-center rounded-control bg-accent px-5 font-medium text-white hover:bg-accent-hover xl:min-h-11">
             포트폴리오 만들기
@@ -252,7 +268,7 @@ export function ProjectEditor(props: Props) {
         ) : (
           <button
             type="button"
-            onClick={() => goToStep(stepIndex + 1)}
+            onClick={() => goToStep(nextIndex)}
             className="min-h-12 rounded-control bg-accent px-5 font-medium text-white hover:bg-accent-hover xl:min-h-11"
           >
             다음 단계
@@ -265,14 +281,12 @@ export function ProjectEditor(props: Props) {
   // 단계·진행률·미리보기를 한 카드에 모아, 어디를 쓰고 있는지 한눈에 보이게 한다
   const preview = (
     <div className="rounded-card border border-line bg-panel p-4">
-      <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} className="hidden border-b border-line pb-4 xl:flex" />
+      <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} onManage={() => setManaging(true)} className="hidden border-b border-line pb-4 xl:flex" />
       <div className="xl:mt-4">
         <ProjectOutputPreview
           title={title}
           answers={answers}
           activeZone={activeZone}
-          page={page}
-          onPageChange={setPage}
           images={assets?.items}
           onCollapse={() => setPreviewOpen(false)}
         />
@@ -359,7 +373,7 @@ export function ProjectEditor(props: Props) {
         )}
 
         {/* 넓은 화면에서는 단계·진행률이 오른쪽 미리보기 카드에 들어간다. 좁은 화면이나 미리보기를 접었을 때만 여기에 보인다 */}
-        <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} className={`mt-3 ${previewOpen ? "xl:hidden" : ""}`} />
+        <StepProgress stepIndex={stepIndex} answers={answers} onSelect={goToStep} onManage={() => setManaging(true)} className={`mt-3 ${previewOpen ? "xl:hidden" : ""}`} />
 
         {/* 1,280px 미만: 작성/미리보기 탭 전환 */}
         <div role="tablist" aria-label="화면 전환" className="mt-3 flex gap-2 xl:hidden">
@@ -391,6 +405,8 @@ export function ProjectEditor(props: Props) {
         </div>
         <div className={`xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto ${tab === "preview" ? "" : "hidden xl:block"} ${previewOpen ? "" : "xl:hidden"}`}>{preview}</div>
       </div>
+
+      {managing && <StepManager answers={answers} onToggle={onToggleStep} onClose={() => setManaging(false)} />}
 
       {real && saveStatus === "conflict" && props.mode === "real" && (
         <Modal

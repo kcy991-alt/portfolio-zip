@@ -26,6 +26,12 @@ export const OWNERSHIPS = ["lead", "joint", "support"] as const;
 export const METRIC_PURPOSES = ["primary", "supporting", "guardrail", "qualitative"] as const;
 export const RESULT_STATUSES = ["observed", "not_measured", "not_executed"] as const;
 export const RESULT_TYPES = ["quantitative", "qualitative", "deliverable", "mixed"] as const;
+/**
+ * 사용자가 작성·출력에서 뺄 수 있는 단계의 키. 개요·역할·문제 정의(핵심 항목이 들어 있는 단계)는 뺄 수 없다.
+ * 성공 지표 단계(성공 지표와 결과)는 뺄 수 있고, 빼면 결과 관련 필수 확인도 하지 않는다.
+ * 빼도 쓴 내용은 지우지 않고 숨기기만 한다.
+ */
+export const OPTIONAL_STEP_KEYS = ["evidence", "insight", "hypothesis", "solution", "metrics", "execution", "reflection"] as const;
 
 // http/https만 허용 (spec 7.5). 빈 값은 허용한다.
 const httpUrl = z
@@ -125,10 +131,14 @@ export const projectAnswersSchema = z.object({
   result: resultSchema.default(() => resultSchema.parse({})),
   execution: executionSchema.default(() => executionSchema.parse({})),
   reflection: reflectionSchema.default(() => reflectionSchema.parse({})),
+  /** 숨긴 단계의 키. 숨긴 단계는 작성 화면에서 건너뛰고 출력에도 나오지 않지만 쓴 내용은 남아 있다. */
+  hiddenSteps: z.array(z.enum(OPTIONAL_STEP_KEYS)).max(OPTIONAL_STEP_KEYS.length).default([]),
 });
 
 export type ProjectAnswers = z.infer<typeof projectAnswersSchema>;
-export type SectionKey = keyof ProjectAnswers;
+/** 질문 섹션 키. hiddenSteps는 섹션이 아니라 설정이므로 뺀다. */
+export type SectionKey = Exclude<keyof ProjectAnswers, "hiddenSteps">;
+export const SECTION_KEYS: SectionKey[] = ["overview", "role", "contribution", "problem", "evidence", "insight", "hypothesis", "solution", "metrics", "result", "execution", "reflection"];
 
 /** 빈 초안. 예시 문구는 저장하지 않는다 (spec 20-4). */
 export const emptyProjectAnswers = (): ProjectAnswers => projectAnswersSchema.parse({});

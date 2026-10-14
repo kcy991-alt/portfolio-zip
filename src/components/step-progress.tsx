@@ -1,4 +1,4 @@
-import { STEPS } from "@/templates/pm-v1";
+import { STEPS, visibleStepIndexes } from "@/templates/pm-v1";
 import { STEP_STATUS_LABEL, stepStatus } from "@/lib/step-status";
 import type { ProjectAnswers } from "@/lib/validation/project-answers";
 
@@ -10,21 +10,27 @@ export function StepProgress({
   stepIndex,
   answers,
   onSelect,
+  onManage,
   className = "",
 }: {
   stepIndex: number;
   answers: ProjectAnswers;
   onSelect: (index: number) => void;
+  /** 있으면 "단계 추가·빼기" 버튼을 보여 준다 */
+  onManage?: () => void;
   className?: string;
 }) {
   const step = STEPS[stepIndex];
-  const percent = Math.round((step.order / STEPS.length) * 100);
+  // 뺀 단계는 세지 않는다. 위치는 쓰는 단계 안에서의 순서다.
+  const visible = visibleStepIndexes(answers);
+  const position = Math.max(visible.indexOf(stepIndex), 0) + 1;
+  const percent = Math.round((position / visible.length) * 100);
 
   return (
     <div className={`flex flex-col gap-3 ${className}`}>
       <div className="flex items-end justify-between gap-3">
         <p className="min-w-0 text-base font-semibold" aria-live="polite">
-          {step.order}/{STEPS.length} 단계 · {step.label}
+          {position}/{visible.length} 단계 · {step.label}
           <span className="ml-2 rounded-full bg-canvas px-2 py-0.5 align-middle text-xs font-medium text-muted">{STEP_STATUS_LABEL[stepStatus(step.key, answers)]}</span>
         </p>
         <p className="shrink-0 text-2xl font-bold leading-none text-accent" aria-hidden>
@@ -38,22 +44,29 @@ export function StepProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        aria-valuetext={`${STEPS.length}단계 중 ${step.order}단계, ${percent}%`}
+        aria-valuetext={`${visible.length}단계 중 ${position}단계, ${percent}%`}
         className="h-3 overflow-hidden rounded-full bg-line"
       >
         <div className="h-full rounded-full bg-accent transition-all duration-300" style={{ width: `${percent}%` }} />
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <span className="shrink-0 whitespace-nowrap text-muted">단계 선택</span>
-        <select value={stepIndex} onChange={(e) => onSelect(Number(e.target.value))} className="min-h-11 min-w-0 rounded-control border border-line bg-panel px-2">
-          {STEPS.map((x, i) => (
-            <option key={x.key} value={i}>
-              {x.order}. {x.label} · {STEP_STATUS_LABEL[stepStatus(x.key, answers)]}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <label className="flex items-center gap-2">
+          <span className="shrink-0 whitespace-nowrap text-muted">단계 선택</span>
+          <select value={stepIndex} onChange={(e) => onSelect(Number(e.target.value))} className="min-h-11 min-w-0 rounded-control border border-line bg-panel px-2">
+            {visible.map((i, n) => (
+              <option key={STEPS[i].key} value={i}>
+                {n + 1}. {STEPS[i].label} · {STEP_STATUS_LABEL[stepStatus(STEPS[i].key, answers)]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {onManage && (
+          <button type="button" onClick={onManage} className="min-h-11 shrink-0 whitespace-nowrap rounded-control border border-line px-3 hover:bg-canvas">
+            단계 추가·빼기
+          </button>
+        )}
+      </div>
     </div>
   );
 }

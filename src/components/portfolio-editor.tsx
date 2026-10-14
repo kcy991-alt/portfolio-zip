@@ -373,7 +373,8 @@ export function PortfolioEditorView({ api }: { api: PortfolioEditorApi }) {
  */
 function OutputPreview({ doc, page, activeZone }: { doc: PortfolioDoc; page: PortfolioPageDoc; activeZone: string | null }) {
   const pagination = usePagination(useDebounced(doc, 300));
-  const mine = pagination.pages.filter((p) => p.logicalId === page.id);
+  // 프로젝트의 페이지들은 하나로 이어 붙여 나오므로, 선택한 페이지가 들어 있는 장을 모두 보여 준다
+  const mine = pagination.pages.filter((p) => (p.pageIds ?? [p.logicalId]).includes(page.id));
 
   const note = (text: string) => <p className="rounded-card border border-dashed border-line bg-panel p-6 text-sm text-muted">{text}</p>;
   if (page.hidden) return note("이 페이지는 포트폴리오에 넣지 않도록 해서 출력에 나오지 않아요. 왼쪽에서 \u2018넣기\u2019를 켜면 나와요.");

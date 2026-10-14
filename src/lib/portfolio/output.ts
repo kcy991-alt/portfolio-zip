@@ -1,6 +1,6 @@
 // 포트폴리오 출력 (spec 9장). 제작본을 "페이지에 놓을 조각(atom)"으로 바꾸고, 실제 높이를 재서 페이지를 나누고, 출력 전 점검을 한다.
 // 화면과 분리한 순수 로직이라 테스트할 수 있다. 높이를 재는 부분(브라우저)만 fits 함수로 주입한다.
-import { RESULT_STATUS_GUIDE, sectionsOfZone, PAGE_LAYOUT, REPRESENTATIVE_ZONE, type PageType } from "@/templates/pm-v1";
+import { hiddenSections, RESULT_STATUS_GUIDE, sectionsOfZone, PAGE_LAYOUT, REPRESENTATIVE_ZONE, type PageType } from "@/templates/pm-v1";
 import { optionLabel } from "@/templates/pm-v1/fields";
 import { REPRESENTATIVE } from "@/lib/storage/asset-limits";
 import type { ProjectAnswers } from "@/lib/validation/project-answers";
@@ -56,6 +56,8 @@ export type LogicalPage = {
   cover?: CoverData;
   /** 프로젝트 소개 페이지만 가진다 */
   hero?: IntroHero;
+  /** 프로젝트의 여러 페이지를 하나로 이어 붙였을 때, 합쳐진 원래 페이지들의 id (편집 화면이 선택한 페이지의 장을 찾는 데 쓴다) */
+  pageIds?: string[];
 };
 
 export type PhysicalPage = {
@@ -70,6 +72,8 @@ export type PhysicalPage = {
   cover?: CoverData;
   /** 프로젝트 소개 페이지의 첫 장만 가진다 */
   hero?: IntroHero;
+  /** 이 장이 담고 있는 원래 페이지들의 id. 이어 붙이지 않은 페이지는 [logicalId]와 같다. */
+  pageIds?: string[];
   /** 조각 하나가 한 페이지보다 커서 나눌 수 없다 (자동 축소·자르기는 하지 않는다, spec 9.2) */
   overflow: boolean;
   pageNumber: number;
@@ -256,7 +260,7 @@ function buildIntroHero(doc: PortfolioDoc, copy: PortfolioProjectDoc, page: Port
 
   // 목표는 사용자가 목표·검증 지표를 실행 페이지에 보이도록 둔 경우에만 올린다(숨긴 내용을 다른 곳에서 보이게 하지 않는다)
   const exec = doc.pages.find((p) => p.portfolio_project_id === copy.id && p.type === "project_execution");
-  const showGoal = Boolean(exec && !exec.hidden && exec.section_keys.includes("metrics"));
+  const showGoal = Boolean(exec && !exec.hidden && exec.section_keys.includes("metrics")) && !hiddenSections(a).has("metrics");
 
   const rep = hasOverview ? copy.images.find((i) => i.section_key === REPRESENTATIVE && i.include_in_output && i.url) : undefined;
   return {
@@ -358,8 +362,10 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
     if (!copy) continue;
     const type = page.type as PageType;
     const hero = type === "project_intro" ? buildIntroHero(doc, copy, page) : null;
+    // 사용자가 뺀 단계(숨기기)의 섹션은 페이지 설정과 상관없이 출력하지 않는다
+    const off = hiddenSections(copy.answers);
     for (const zone of PAGE_LAYOUT[type].zones) {
-      if (!sectionsOfZone(type, zone).some((s) => page.section_keys.includes(s))) continue;
+      if (!sectionsOfZone(type, zone).some((s) => page.section_keys.includes(s) && !off.has(s))) continue;
       const items = zoneAtoms(zone, copy, mk, hero);
       if (items.length === 0) continue;
       // 프로젝트 정보는 자체 제목(프로젝트 이름)이 있어서 구역 제목을 붙이지 않는다
@@ -370,6 +376,63 @@ export function buildLogicalPages(doc: PortfolioDoc): LogicalPage[] {
   }
   return result;
 }
+
+/**
+ * 프로젝트 하나의 소개·분석·실행·결과 페이지를 하나의 흐름으로 이어 붙인다. 앞 페이지의 빈 구역이 있으면 뒤의 내용이 그 자리를 채운다.
+ * 프로젝트 사이에서는 합치지 않는다(다른 프로젝트의 내용이 섞이지 않는다). 표지·Summary·프로필은 그대로 둔다.
+ * 구역 순서와 "소개 첫 장의 위쪽 영역"은 그대로이고, 어느 장에서 나누든 문단·항목 경계에서만 나뉜다.
+ */
+export function mergeProjectPages(logical: LogicalPage[], doc: PortfolioDoc): LogicalPage[] {
+  const ownerOf = new Map<string, string>();
+  const idsOfOwner = new Map<string, string[]>(); // 비어 있거나 숨긴 페이지도 포함한다: 어느 페이지를 골라도 그 프로젝트의 장이 보이게
+  for (const p of doc.pages) {
+    if (!p.portfolio_project_id) continue;
+    ownerOf.set(p.id, p.portfolio_project_id);
+    idsOfOwner.set(p.portfolio_project_id, [...(idsOfOwner.get(p.portfolio_project_id) ?? []), p.id]);
+  }
+
+  const out: LogicalPage[] = [];
+  let group: LogicalPage[] = [];
+  let groupOwner: string | null = null;
+  const flush = () => {
+    if (group.length === 0) return;
+    const pageIds = idsOfOwner.get(groupOwner ?? "") ?? group.map((g) => g.id);
+    if (group.length === 1) {
+      out.push({ ...group[0], pageIds });
+    } else {
+      const first = group[0];
+      const hero = group.find((g) => g.hero)?.hero;
+      out.push({
+        id: first.id,
+        type: first.type,
+        headerTitle: first.headerTitle,
+        headerSub: "",
+        atoms: group.flatMap((g) => g.atoms),
+        ...(hero ? { hero } : {}),
+        pageIds,
+      });
+    }
+    group = [];
+    groupOwner = null;
+  };
+
+  for (const page of logical) {
+    const owner = page.type.startsWith("project_") ? (ownerOf.get(page.id) ?? null) : null;
+    if (owner === null) {
+      flush();
+      out.push({ ...page, pageIds: [page.id] });
+      continue;
+    }
+    if (groupOwner !== owner) flush();
+    groupOwner = owner;
+    group.push(page);
+  }
+  flush();
+  return out;
+}
+
+/** 화면·출력이 실제로 쓰는 논리 페이지: 제작본을 페이지로 바꾸고 프로젝트 안에서 이어 붙인다. */
+export const buildOutputPages = (doc: PortfolioDoc): LogicalPage[] => mergeProjectPages(buildLogicalPages(doc), doc);
 
 // ---------------------------------------------------------------------------
 // 2. 페이지 나누기: 조각을 순서대로 채우다가 넘치면 다음 페이지로 보낸다 (spec 9.2)
@@ -393,7 +456,23 @@ export function toUnits(atoms: Atom[]): Atom[][] {
 export type FitFn = (atoms: Atom[], hero?: IntroHero | null) => boolean;
 
 /**
+ * 같은 구역(zone)이 이어지는 조각 묶음(unit)끼리 다시 묶는다. 구역이 없는 묶음은 각각 하나의 구역이다.
+ * 반환값의 각 원소는 한 구역의 묶음(unit) 목록이다.
+ */
+function groupByZone(atoms: Atom[]): Atom[][][] {
+  const groups: Atom[][][] = [];
+  for (const unit of toUnits(atoms)) {
+    const last = groups[groups.length - 1];
+    if (unit[0].zone !== undefined && last && last[0][0].zone === unit[0].zone) last.push(unit);
+    else groups.push([unit]);
+  }
+  return groups;
+}
+
+/**
  * 조각 묶음을 페이지로 나눈다. fits는 "이 조각들이 한 페이지에 들어가는가"를 실제 높이로 알려 준다.
+ * 한 구역(예: 회고)은 가능하면 한 페이지에 통째로 둔다: 지금 페이지에 다 안 들어가면 구역 전체를 다음 페이지로 넘긴다.
+ * 구역 하나가 빈 페이지에도 다 안 들어갈 때만 문단·항목 경계에서 나눈다.
  * 묶음 하나가 혼자서도 들어가지 않으면 자르거나 줄이지 않고 그 페이지에 overflow 표시를 한다.
  */
 export function paginate(atoms: Atom[], fits: FitFn, fitsFirst: FitFn = fits): { atoms: Atom[]; overflow: boolean }[] {
@@ -402,17 +481,18 @@ export function paginate(atoms: Atom[], fits: FitFn, fitsFirst: FitFn = fits): {
   let isFirst = true;
   const fn = () => (isFirst ? fitsFirst : fits);
 
-  for (const unit of toUnits(atoms)) {
+  /** 한 묶음을 놓는다. 들어가지 않으면 페이지를 넘기고, 그래도 안 들어가면 overflow 표시를 한다. */
+  const placeUnit = (unit: Atom[]) => {
     if (fn()([...current, ...unit])) {
       current.push(...unit);
-      continue;
+      return;
     }
     // 첫 장에 위쪽 영역(fitsFirst)이 있어서 첫 묶음도 못 놓지만 다음 장에는 들어가면, 첫 장은 위쪽 영역만 두고 넘긴다
     if (current.length === 0 && isFirst && fitsFirst !== fits && fits(unit)) {
       pages.push({ atoms: [], overflow: false });
       isFirst = false;
       current = [...unit];
-      continue;
+      return;
     }
     if (current.length > 0) {
       pages.push({ atoms: current, overflow: false });
@@ -424,6 +504,23 @@ export function paginate(atoms: Atom[], fits: FitFn, fitsFirst: FitFn = fits): {
       pages.push({ atoms: unit, overflow: true });
       isFirst = false;
     }
+  };
+
+  for (const units of groupByZone(atoms)) {
+    const group = units.flat();
+    // 지금 페이지에 구역 전체가 들어가면 그대로 둔다
+    if (fn()([...current, ...group])) {
+      current.push(...group);
+      continue;
+    }
+    // 다 안 들어가지만 새 페이지에는 통째로 들어가면, 구역을 쪼개지 않고 통째로 다음 페이지로 보낸다
+    const startsNewPage = current.length > 0 || (isFirst && fitsFirst !== fits);
+    if (startsNewPage && fits(group)) {
+      placeUnit(group);
+      continue;
+    }
+    // 구역이 새 페이지에도 다 안 들어가면 문단·항목 경계에서 나눈다
+    for (const unit of units) placeUnit(unit);
   }
   if (current.length > 0) pages.push({ atoms: current, overflow: false });
   return pages;
@@ -434,7 +531,7 @@ export function paginateAll(logical: LogicalPage[], fits: FitFn): PhysicalPage[]
   const physical: Omit<PhysicalPage, "pageNumber">[] = [];
   for (const page of logical) {
     if (page.type === "cover") {
-      physical.push({ key: `${page.id}#0`, logicalId: page.id, type: page.type, headerTitle: page.headerTitle, headerSub: page.headerSub, continuationIndex: 0, atoms: [], cover: page.cover, overflow: false });
+      physical.push({ key: `${page.id}#0`, logicalId: page.id, pageIds: page.pageIds ?? [page.id], type: page.type, headerTitle: page.headerTitle, headerSub: page.headerSub, continuationIndex: 0, atoms: [], cover: page.cover, overflow: false });
       continue;
     }
     // 소개 페이지는 위쪽 영역이 있어서 첫 장에 들어갈 자리가 적다. 내용이 하나도 없어도 위쪽 영역만으로 첫 장이 생긴다.
@@ -442,7 +539,7 @@ export function paginateAll(logical: LogicalPage[], fits: FitFn): PhysicalPage[]
     const sheets = paginate(page.atoms, fits, page.hero ? heroFits : fits);
     if (sheets.length === 0 && page.hero) sheets.push({ atoms: [], overflow: false });
     sheets.forEach((p, i) => {
-      physical.push({ key: `${page.id}#${i}`, logicalId: page.id, type: page.type, headerTitle: page.headerTitle, headerSub: page.headerSub, continuationIndex: i, atoms: p.atoms, overflow: p.overflow, ...(i === 0 && page.hero ? { hero: page.hero } : {}) });
+      physical.push({ key: `${page.id}#${i}`, logicalId: page.id, pageIds: page.pageIds ?? [page.id], type: page.type, headerTitle: page.headerTitle, headerSub: page.headerSub, continuationIndex: i, atoms: p.atoms, overflow: p.overflow, ...(i === 0 && page.hero ? { hero: page.hero } : {}) });
     });
   }
   return physical.map((p, i) => ({ ...p, pageNumber: i + 1 }));
@@ -466,14 +563,17 @@ const has = (s: string | null | undefined) => Boolean(s && s.trim());
 
 /** 프로젝트 사본에서 비어 있는 핵심 항목의 이름들 (spec 9.3: 프로젝트명·역할·문제·직접 행동·결과 상태와 설명) */
 export function missingCoreFields(copy: Pick<PortfolioProjectDoc, "title" | "answers">): string[] {
+  // 성공 지표 단계를 뺀 프로젝트는 결과를 쓰지 않기로 한 것이므로 결과 상태·설명을 확인하지 않는다
   const a = copy.answers;
   const missing: string[] = [];
   if (!has(copy.title)) missing.push("프로젝트 이름");
   if (!has(a.role.responsibility)) missing.push("역할");
   if (!has(a.problem.phenomenon)) missing.push("문제(현상)");
   if (!a.contribution.some((c) => has(c.task))) missing.push("직접 한 일");
-  if (!a.result.status) missing.push("결과 상태");
-  if (!has(a.result.summary)) missing.push("결과 설명");
+  if (!hiddenSections(a).has("result")) {
+    if (!a.result.status) missing.push("결과 상태");
+    if (!has(a.result.summary)) missing.push("결과 설명");
+  }
   return missing;
 }
 
@@ -529,6 +629,7 @@ export function runPreflight({ doc, pages, failedImages, saveBlock }: PreflightI
   }
 
   for (const c of usable) {
+    if (c.answers.hiddenSteps.includes("evidence")) continue; // 근거 단계를 뺀 프로젝트에는 근거 안내를 하지 않는다
     const hasEvidence = c.answers.evidence.some((e) => has(e.description)) || c.images.some((i) => i.include_in_output);
     if (!hasEvidence) checks.push({ id: `evidence-${c.id}`, level: "warn", title: `‘${c.title}’에 근거가 없어요`, detail: "데이터·관찰 같은 근거나 이미지를 더하면 설명이 더 단단해져요.", pageId: projectPages(c.id)[0]?.id });
   }
@@ -539,7 +640,7 @@ export function runPreflight({ doc, pages, failedImages, saveBlock }: PreflightI
 
   for (const c of usable) {
     const status = c.answers.result.status;
-    const resultVisible = projectPages(c.id).some((p) => p.type === "project_result" && !p.hidden);
+    const resultVisible = !hiddenSections(c.answers).has("result") && projectPages(c.id).some((p) => p.type === "project_result" && !p.hidden);
     if (resultVisible && (status === "not_measured" || status === "not_executed")) {
       const label = RESULT_STATUS_GUIDE[status].outputLabel;
       checks.push({ id: `unverified-${c.id}`, level: "warn", title: `‘${c.title}’에 미검증 결과가 포함돼요`, detail: `‘${label}’ 표시가 붙어서 실제 성과로 읽히지 않게 출력돼요. 이 표시는 끌 수 없어요.`, pageId: projectPages(c.id).find((p) => p.type === "project_result")?.id });

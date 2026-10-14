@@ -185,6 +185,34 @@ describe("페이지 나누기", () => {
     expect(pages.map((p) => p.atoms.map((a) => a.id))).toEqual([["a0", "a1"], ["a2", "a3"]]);
   });
 
+  describe("한 구역은 한 페이지에", () => {
+    const inZone = (i: number, zone: string, kind: Atom["kind"] = "text"): Atom => ({ ...atom(i, kind), zone }) as Atom;
+
+    it("구역이 지금 페이지에 다 안 들어가면 쪼개지 않고 통째로 다음 페이지로 보낸다", () => {
+      const atoms = [inZone(0, "Problem"), inZone(1, "Problem"), inZone(2, "Reflection"), inZone(3, "Reflection"), inZone(4, "Reflection")];
+      const pages = paginate(atoms, capacity(4));
+      expect(pages.map((p) => p.atoms.map((a) => a.id))).toEqual([["a0", "a1"], ["a2", "a3", "a4"]]);
+    });
+
+    it("구역이 한 페이지에 들어가면 이어서 채운다", () => {
+      const atoms = [inZone(0, "Problem"), inZone(1, "Problem"), inZone(2, "Reflection"), inZone(3, "Reflection")];
+      expect(paginate(atoms, capacity(4)).map((p) => p.atoms.length)).toEqual([4]);
+    });
+
+    it("구역 하나가 빈 페이지에도 다 안 들어갈 때만 문단·항목 경계에서 나눈다", () => {
+      const atoms = Array.from({ length: 7 }, (_, i) => inZone(i, "Research & Evidence"));
+      const pages = paginate(atoms, capacity(3));
+      expect(pages.map((p) => p.atoms.length)).toEqual([3, 3, 1]);
+      expect(pages.flatMap((p) => p.atoms.map((a) => a.id))).toEqual(atoms.map((a) => a.id));
+    });
+
+    it("구역 제목은 그 구역의 첫 조각과 함께 움직이고, 순서는 바뀌지 않는다", () => {
+      const atoms = [inZone(0, "A", "zoneTitle"), inZone(1, "A"), inZone(2, "A"), inZone(3, "B", "zoneTitle"), inZone(4, "B"), inZone(5, "B")];
+      const pages = paginate(atoms, capacity(4));
+      expect(pages.map((p) => p.atoms.map((a) => a.id))).toEqual([["a0", "a1", "a2"], ["a3", "a4", "a5"]]);
+    });
+  });
+
   it("한 묶음이 혼자서도 들어가지 않으면 줄이거나 자르지 않고 넘침으로 표시한다", () => {
     const atoms = [atom(0), atom(1), atom(2)];
     const tooBig: FitFn = (list) => !list.some((a) => a.id === "a1"); // a1은 어떤 페이지에도 안 들어간다

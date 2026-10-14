@@ -4,14 +4,14 @@ import { fail, ok } from "@/lib/api/response";
 import { getAuthed, isUuid } from "@/lib/api/server";
 import { checkProjectLimits, MAX_ACCOUNT_BYTES, REPRESENTATIVE } from "@/lib/storage/asset-limits";
 import { InvalidImageError, processImage } from "@/lib/storage/process-image";
-import { emptyProjectAnswers } from "@/lib/validation/project-answers";
+import { SECTION_KEYS as ANSWER_SECTION_KEYS } from "@/lib/validation/project-answers";
 
 // 런타임은 지정하지 않는다(기본 Node.js). sharp는 Node.js에서만 동작한다.
 // Vercel 함수는 요청 본문이 4.5MB를 넘으면 앱 코드에 닿기 전에 거절한다. 여유를 두고 4MB로 제한한다.
 // 브라우저가 올리기 전에 이 크기 안으로 줄여서 보낸다 (src/lib/storage/client-compress.ts).
 const MAX_REQUEST_BYTES = 4 * 1024 * 1024;
 
-const SECTION_KEYS = new Set<string>([...Object.keys(emptyProjectAnswers()), REPRESENTATIVE]);
+const SECTION_KEYS = new Set<string>([...ANSWER_SECTION_KEYS, REPRESENTATIVE]);
 
 /**
  * 이미지를 올리고 프로젝트의 한 구역에 붙인다 (spec F06).

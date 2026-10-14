@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import type { PortfolioDoc } from "@/lib/portfolio/model";
-import { buildLogicalPages, paginateAll, type Atom, type FitFn, type HeroCard, type IntroHero, type PhysicalPage } from "@/lib/portfolio/output";
+import { buildOutputPages, paginateAll, type Atom, type FitFn, type HeroCard, type IntroHero, type PhysicalPage } from "@/lib/portfolio/output";
 
 // 출력 페이지의 크기와 배치 (spec 9.1). 설계 캔버스는 1280×720px(16:9)이고, 인쇄할 때는 320×180mm로 줄여서 찍는다.
 export const CANVAS_W = 1280;
@@ -379,7 +379,7 @@ export function usePagination(doc: PortfolioDoc | null): Pagination {
     const root = createRoot(host);
 
     (async () => {
-      const logical = buildLogicalPages(doc);
+      const logical = buildOutputPages(doc);
       const fits = createFits(root, host, () => cancelled);
 
       // 1차: 지금 글꼴로 재고, 글꼴이 다 불러와지면 다시 잰다

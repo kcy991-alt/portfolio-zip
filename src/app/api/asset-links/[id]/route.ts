@@ -4,9 +4,9 @@ import { fail, ok } from "@/lib/api/response";
 import { getAuthed, isUuid, notFound, parseBody } from "@/lib/api/server";
 import { MAX_ALT, MAX_CAPTION, REPRESENTATIVE } from "@/lib/storage/asset-limits";
 import { cleanupUnreferencedAssets } from "@/lib/storage/cleanup";
-import { emptyProjectAnswers } from "@/lib/validation/project-answers";
+import { SECTION_KEYS } from "@/lib/validation/project-answers";
 
-const sections: [string, ...string[]] = [REPRESENTATIVE, ...Object.keys(emptyProjectAnswers())];
+const sections: [string, ...string[]] = [REPRESENTATIVE, ...SECTION_KEYS];
 
 const patchSchema = z
   .object({

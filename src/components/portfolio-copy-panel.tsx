@@ -4,10 +4,11 @@ import { useId, useState } from "react";
 import { DEFAULT_PAGE_SECTIONS, PAGE_TYPE_LABEL, type PortfolioDoc, type PortfolioImage, type PortfolioPageDoc } from "@/lib/portfolio/model";
 import type { PortfolioEditorApi } from "@/lib/portfolio/use-portfolio-editor";
 import type { SectionKey } from "@/lib/validation/project-answers";
-import { STEPS, zoneOfField } from "@/templates/pm-v1";
+import { STEPS, visibleStepIndexes, zoneOfField } from "@/templates/pm-v1";
 import { SECTION_FORMS } from "@/templates/pm-v1/fields";
 import { inputClass, Modal } from "./modal";
 import { SectionForm } from "./section-form";
+import { StepManager, toggleStepHidden } from "./step-manager";
 
 type Copy = PortfolioDoc["projects"][number];
 
@@ -63,7 +64,11 @@ export function ProjectCopyPanel({
   const [confirm, setConfirm] = useState<"refresh" | "remove" | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const step = STEPS[stepIndex];
+  const [managing, setManaging] = useState(false);
+  // 뺀 단계는 고치기 목록에서 빠진다. 보고 있던 단계를 빼면 첫 번째 보이는 단계로 돌아간다.
+  const visible = visibleStepIndexes(copy.answers);
+  const current = visible.includes(stepIndex) ? stepIndex : visible[0];
+  const step = STEPS[current];
   const titleId = useId();
   const stepId = useId();
 
@@ -136,13 +141,16 @@ export function ProjectCopyPanel({
           <label htmlFor={stepId} className="text-sm text-muted">
             내용 고치기
           </label>
-          <select id={stepId} value={stepIndex} onChange={(e) => setStepIndex(Number(e.target.value))} className="min-h-11 rounded-control border border-line bg-panel px-2">
-            {STEPS.map((s, i) => (
-              <option key={s.key} value={i}>
-                {s.order}. {s.label}
+          <select id={stepId} value={current} onChange={(e) => setStepIndex(Number(e.target.value))} className="min-h-11 rounded-control border border-line bg-panel px-2">
+            {visible.map((i, n) => (
+              <option key={STEPS[i].key} value={i}>
+                {n + 1}. {STEPS[i].label}
               </option>
             ))}
           </select>
+          <button type="button" onClick={() => setManaging(true)} className="min-h-11 rounded-control border border-line px-3 text-sm hover:bg-canvas">
+            단계 추가·빼기
+          </button>
         </div>
         {step.sections.map((s) => (
           <SectionForm
@@ -189,6 +197,8 @@ export function ProjectCopyPanel({
           </button>
         </div>
       </div>
+
+      {managing && <StepManager answers={copy.answers} onToggle={(key) => api.updateCopy(copy.id, { answers: toggleStepHidden(copy.answers, key) })} onClose={() => setManaging(false)} />}
 
       {confirm === "refresh" && (
         <Modal title="원본에서 다시 가져올까요?" onClose={() => setConfirm(null)}>

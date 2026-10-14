@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { IMAGE_ZONE, OUTPUT_ZONES, PAGE_LAYOUT, REPRESENTATIVE_ZONE } from "@/templates/pm-v1";
 import { SECTION_FORMS } from "@/templates/pm-v1/fields";
-import { emptyProjectAnswers, type SectionKey } from "@/lib/validation/project-answers";
+import { emptyProjectAnswers, SECTION_KEYS } from "@/lib/validation/project-answers";
 
 describe("pm-v1 입력 폼 정의", () => {
   const empty = emptyProjectAnswers();
 
   it("폼 필드가 스키마의 필드와 정확히 일치한다", () => {
-    for (const key of Object.keys(empty) as SectionKey[]) {
+    for (const key of SECTION_KEYS) {
       const def = SECTION_FORMS[key];
       const value = empty[key] as unknown;
       const schemaFields = Array.isArray(value)

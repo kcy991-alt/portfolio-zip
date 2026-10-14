@@ -1,4 +1,4 @@
-import type { SectionKey } from "@/lib/validation/project-answers";
+import { OPTIONAL_STEP_KEYS, type ProjectAnswers, type SectionKey } from "@/lib/validation/project-answers";
 
 export const TEMPLATE_KEY = "pm";
 export const TEMPLATE_VERSION = 1;
@@ -37,6 +37,26 @@ export const STEPS: StepDefinition[] = [
   { order: 9, key: "execution", label: "실행 계획", sections: ["execution"], questions: ["어떤 순서로 진행했거나 진행할 건가요?", "협업·검증 방법은 무엇인가요?"] },
   { order: 10, key: "reflection", label: "회고", sections: ["reflection"], questions: ["한계·배운 점·추가 데이터·다음 단계는 무엇인가요?"] },
 ];
+
+/** 뺄 수 있는 단계인가. 개요·역할·문제 정의는 핵심 항목이 들어 있어서 뺄 수 없다. */
+export const isRemovableStep = (key: string): boolean => (OPTIONAL_STEP_KEYS as readonly string[]).includes(key);
+
+/** 숨긴 단계의 키 집합. 뺄 수 없는 단계 키가 섞여 있어도 무시한다. */
+export function hiddenStepKeys(answers: Pick<ProjectAnswers, "hiddenSteps">): Set<string> {
+  return new Set(answers.hiddenSteps.filter(isRemovableStep));
+}
+
+/** 숨기지 않은 단계의 STEPS 위치(0부터). 작성 화면은 이 목록 안에서만 이동한다. */
+export function visibleStepIndexes(answers: Pick<ProjectAnswers, "hiddenSteps">): number[] {
+  const hidden = hiddenStepKeys(answers);
+  return STEPS.flatMap((s, i) => (hidden.has(s.key) ? [] : [i]));
+}
+
+/** 숨긴 단계에 속한 섹션들. 출력에서 이 섹션의 구역은 나오지 않는다. */
+export function hiddenSections(answers: Pick<ProjectAnswers, "hiddenSteps">): Set<SectionKey> {
+  const hidden = hiddenStepKeys(answers);
+  return new Set(STEPS.filter((s) => hidden.has(s.key)).flatMap((s) => s.sections));
+}
 
 /** 포트폴리오 출력 구역. 섹션 키가 어느 페이지(A~D)의 어느 구역에 들어가는지 정의한다 (spec 7.1, 9.1). */
 export type OutputZone = { page: PageType; zone: string };
