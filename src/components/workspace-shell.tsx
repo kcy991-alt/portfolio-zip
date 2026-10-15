@@ -249,7 +249,7 @@ const EDITOR_PATH = /^\/portfolios\/[^/]+\/edit(\/|$)/;
 
 export function WorkspaceShell({ children, account }: { children: React.ReactNode; account?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  // 1,280px 이상에서 사이드바를 접어 작성 공간을 넓힌다. 선택은 이 브라우저에 기억한다(없어도 동작).
+  // 1,280px 이상에서 사이드바를 접어 작성 공간을 넓힌다. 선택은 이번 방문(탭) 동안만 기억해서, 새로 들어오면 항상 펼쳐 보인다.
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // 포트폴리오 편집 화면은 페이지 미리보기를 크게 보려고, 들어갈 때마다 사이드바를 닫은 채로 시작한다. 거기서 펼쳐도 기억하지 않는다.
   const [onEditor, setOnEditor] = useState(false);
@@ -264,8 +264,10 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
 
   useEffect(() => {
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 서버 렌더와 맞추려고 처음엔 펼친 채로 그린 뒤, 기억해 둔 값을 읽어 반영한다
-      if (localStorage.getItem("sidebar-open") === "0") setSidebarOpen(false);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 서버 렌더와 맞추려고 처음엔 펼친 채로 그린 뒤, 이번 방문에 접은 값이 있으면 반영한다
+      if (sessionStorage.getItem("sidebar-open") === "0") setSidebarOpen(false);
+      // 예전에 접은 선택을 브라우저에 오래 남겨 두던 값은 지운다(그 값 때문에 처음 들어와도 접혀 있었다)
+      localStorage.removeItem("sidebar-open");
     } catch {
       // 저장소를 못 쓰면 기본값(펼침)을 쓴다
     }
@@ -278,7 +280,7 @@ export function WorkspaceShell({ children, account }: { children: React.ReactNod
     }
     setSidebarOpen(value);
     try {
-      localStorage.setItem("sidebar-open", value ? "1" : "0");
+      sessionStorage.setItem("sidebar-open", value ? "1" : "0");
     } catch {
       // 기억하지 못해도 이번 화면에서는 바뀐다
     }
