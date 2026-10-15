@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { api, ApiError } from "@/lib/api/client";
 import { Autosaver, type SaveResult, type SaveStatus } from "@/lib/autosave";
 import type { Cover, Profile, Summary } from "@/lib/validation/portfolio";
@@ -96,6 +97,7 @@ export function useLocalPortfolioEditor(
           // 상태 갱신 함수는 나중에 실행되므로 사본 id는 미리 정해 둔다
           const copyId = `local-pp-${crypto.randomUUID()}`;
           update((d) => addProjectCopy(d, source, copyId).doc);
+          trackEvent("project_added_to_portfolio", "guest");
           added.push(copyId);
         }
         return added;
@@ -243,6 +245,7 @@ export function useRemotePortfolioEditor(initial: PortfolioDoc, reloadLatest: ()
       for (const projectId of sourceIds) {
         const res = await api<{ copyId: string; doc: PortfolioDoc | null }>(`/api/portfolios/${portfolioId}/projects`, { method: "POST", body: { project_id: projectId } });
         added.push(res.copyId);
+        trackEvent("project_added_to_portfolio", "member");
         if (res.doc) setDoc((d) => ({ ...res.doc!, title: d.title, cover: d.cover, summary: d.summary, profile: d.profile, revision: d.revision }));
       }
       return added;

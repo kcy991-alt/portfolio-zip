@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatedMessage, SaveStatusChip } from "@/components/app-motion";
+import { trackEvent } from "@/lib/analytics";
 import { api, ApiError } from "@/lib/api/client";
 import { Autosaver, type SaveResult, type SaveStatus } from "@/lib/autosave";
 import { STEPS, visibleStepIndexes, zoneOfField } from "@/templates/pm-v1";
@@ -84,6 +85,7 @@ export function ProjectEditor(props: Props) {
     last_step: stepIndex + 1,
   });
   const saver = useRef<Autosaver<Payload> | null>(null);
+  const recordSavedSent = useRef(false);
 
   const step = STEPS[stepIndex];
   // 숨긴 단계는 건너뛴다. 이전·다음은 보이는 단계 안에서 움직인다.
@@ -99,7 +101,14 @@ export function ProjectEditor(props: Props) {
     if (!real) return;
     const instance = new Autosaver<Payload>({
       initialRevision: real.revision,
-      onStatus: setSaveStatus,
+      onStatus: (status) => {
+        setSaveStatus(status);
+        if (status === "saved" && !recordSavedSent.current) {
+          recordSavedSent.current = true; // 화면을 연 뒤 첫 저장 성공만 센다
+          trackEvent("core_record_saved", "member");
+        }
+        if (status === "error") trackEvent("save_failed", "member");
+      },
       save: async (payload, expectedRevision): Promise<SaveResult> => {
         try {
           const data = await api<{ revision: number }>(`/api/projects/${real.id}`, {

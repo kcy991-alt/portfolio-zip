@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { api, ApiError } from "@/lib/api/client";
 import type { PortfolioDoc } from "@/lib/portfolio/model";
 import { countByLevel, runPreflight, type Check } from "@/lib/portfolio/output";
@@ -43,8 +44,10 @@ function useOutputDoc(id: string): Loaded {
 }
 
 function recordEvent(name: "preview_opened" | "print_requested", id: string) {
-  // 비로그인 체험은 기록하지 않는다. 실패해도 사용자 동작은 막지 않는다.
-  if (id.startsWith("local-")) return;
+  const guest = id.startsWith("local-");
+  trackEvent(name, guest ? "guest" : "member");
+  // 자체 DB에는 비로그인 체험을 기록하지 않는다. 실패해도 사용자 동작은 막지 않는다.
+  if (guest) return;
   api("/api/events", { method: "POST", body: { name, object_id: id } }).catch(() => {});
 }
 

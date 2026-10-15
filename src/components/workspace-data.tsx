@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-context";
 import { api } from "@/lib/api/client";
+import { trackEvent } from "@/lib/analytics";
 import { leaving } from "@/lib/auth/google";
 import { createLocalPortfolio, type PortfolioDoc } from "@/lib/portfolio/model";
 import type { TrashItem } from "@/lib/trash";
@@ -233,6 +234,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
             updated_at: now(),
           };
           setLocalProjects((list) => [project, ...list]);
+          trackEvent("project_created", "guest");
           return toItem(project);
         },
         moveProject: async (id, folderId) => {
@@ -260,6 +262,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
         createPortfolio: async (title) => {
           const doc = createLocalPortfolio(title);
           setLocalPortfolios((list) => [{ doc, updated_at: now() }, ...list]);
+          trackEvent("portfolio_created", "guest");
           return { id: doc.id };
         },
         deletePortfolio: async (id) => {
@@ -334,6 +337,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
       createProject: async (input) => {
         const project = await api<ProjectItem>("/api/projects", { method: "POST", body: input });
         setProjects((list) => [project, ...list]);
+        trackEvent("project_created", "member");
         return project;
       },
       moveProject: async (id, folderId) => {
@@ -347,6 +351,7 @@ export function WorkspaceDataProvider({ children }: { children: React.ReactNode 
       createPortfolio: async (title) => {
         const created = await api<{ id: string }>("/api/portfolios", { method: "POST", body: { title } });
         setPortfolios((list) => [{ id: created.id, title, project_count: 0, updated_at: new Date().toISOString() }, ...list]);
+        trackEvent("portfolio_created", "member");
         return created;
       },
       deletePortfolio: async (id) => {

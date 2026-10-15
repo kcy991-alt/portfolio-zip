@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { api, ApiError } from "@/lib/api/client";
 import { checkProjectLimits } from "@/lib/storage/asset-limits";
 import { PrepareImageError, prepareImageForUpload } from "@/lib/storage/client-compress";
@@ -102,6 +103,7 @@ export function useProjectAssets(projectId: string | null) {
         await reload();
       } catch (e) {
         // 업로드가 실패해도 텍스트 답변은 그대로 둔다 (spec F06)
+        trackEvent("asset_upload_failed", "member"); // 이미지 첨부는 로그인한 사용자만 쓴다
         setUploadError(e instanceof PrepareImageError || e instanceof Error ? e.message : "이미지를 올리지 못했어요.");
       } finally {
         setUploadingSection(null);
